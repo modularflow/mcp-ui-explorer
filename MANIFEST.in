@@ -1,4 +1,4 @@
-include README_MCP_UI_EXPLORER.md
+include README.md
 include LICENSE
 include requirements.txt
 include hierarchical_ui_explorer.py
