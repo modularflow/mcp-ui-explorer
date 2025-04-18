@@ -11,28 +11,13 @@ An MCP server that provides tools for exploring and interacting with UI elements
 
 ## Installation
 
-### Option 1: Install from PyPI (not yet available)
-
-```bash
-pip install ui-explorer-mcp
-```
-
-### Option 2: Install from source
-
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/ui-explorer-mcp
-cd ui-explorer-mcp
-```
-
-2. Install the dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-3. Install the package in development mode:
-```bash
-pip install -e .
+git clone https://github.com/modularflow/mcp-ui-explorer
+cd mcp-ui-explorer
+uv venv
+source .venv/bin/activate #.venv/Scripts/activate on Windows
+uv pip install -e .
 ```
 
 ## Usage
@@ -57,12 +42,6 @@ This will install the server for persistent use within the Claude Desktop app.
 
 ```bash
 python mcp_ui_explorer.py
-```
-
-### Method 4: Use the installed command (if installed via pip)
-
-```bash
-ui-explorer-mcp
 ```
 
 ## How to Use
@@ -114,30 +93,6 @@ Parameters:
    ```
    click_ui_element(control_type="Button", text="Submit")
    ```
-
-## Packaging and Distribution
-
-### Build the package
-
-To create a distributable package:
-
-```bash
-python -m build
-```
-
-This will create both a source distribution (`.tar.gz`) and a wheel (`.whl`) in the `dist/` directory.
-
-### Install the package locally
-
-```bash
-pip install dist/ui_explorer_mcp-0.1.0-py3-none-any.whl
-```
-
-### Upload to PyPI (for maintainers)
-
-```bash
-python -m twine upload dist/*
-```
 
 ## Requirements
 
