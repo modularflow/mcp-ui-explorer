@@ -12,8 +12,8 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/modularflow/mcp-ui-explorer",
-    packages=find_packages(),
-    py_modules=["mcp_ui_explorer", "hierarchical_ui_explorer", "ui_hierarchy_click"],
+    package_dir={"": "src"},
+    packages=find_packages(where="src"),
     classifiers=[
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.10",

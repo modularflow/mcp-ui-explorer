@@ -4,7 +4,7 @@ import os
 import json
 import pyautogui
 from PIL import Image as PILImage
-from hierarchical_ui_explorer import (
+from .hierarchical_ui_explorer import (
     get_predefined_regions,
     analyze_ui_hierarchy,
     visualize_ui_hierarchy
