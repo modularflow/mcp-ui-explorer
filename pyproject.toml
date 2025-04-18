@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ui-explorer-mcp"
+version = "0.1.0"
+description = "An MCP server for exploring and interacting with UI elements"
+readme = "README_MCP_UI_EXPLORER.md"
+authors = [
+    {name = "UI Explorer Developer", email = "example@example.com"}
+]
+license = {text = "MIT"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=2.0.0",
+    "pyautogui",
+    "pywinauto",
+    "pillow",
+]
+
+[project.urls]
+Homepage = "https://github.com/yourusername/ui-explorer-mcp"
+Issues = "https://github.com/yourusername/ui-explorer-mcp/issues"
+
+[project.scripts]
+ui-explorer-mcp = "mcp_ui_explorer:mcp.run"
