@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ui-explorer-mcp"
+name = "mcp-ui-explorer"
 version = "0.1.0"
 description = "An MCP server for exploring and interacting with UI elements"
 readme = "README.md"
@@ -26,8 +26,8 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/yourusername/ui-explorer-mcp"
-Issues = "https://github.com/yourusername/ui-explorer-mcp/issues"
+Homepage = "https://github.com/modularflow/mcp-ui-explorer"
+Issues = "https://github.com/modularflow/mcp-ui-explorer/issues"
 
 [project.scripts]
-ui-explorer-mcp = "mcp_ui_explorer:mcp.run"
+mcp-ui-explorer = "mcp_ui_explorer:mcp.run"
