@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "ui-explorer-mcp"
 version = "0.1.0"
 description = "An MCP server for exploring and interacting with UI elements"
-readme = "README_MCP_UI_EXPLORER.md"
+readme = "README.md"
 authors = [
     {name = "UI Explorer Developer", email = "example@example.com"}
 ]
