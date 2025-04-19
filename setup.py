@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="mcp-ui-explorer",
-    version="0.1.0",
+    version="0.1.2",
     author="UI Explorer Developer",
     author_email="example@example.com",
     description="An MCP server for exploring and interacting with UI elements",
@@ -22,14 +22,15 @@ setup(
     ],
     python_requires=">=3.10",
     install_requires=[
-        "fastmcp>=2.0.0",
         "pyautogui",
         "pywinauto",
         "pillow",
+        "pydantic>=2.0.0",
+        "mcp>=1.6.0",
     ],
     entry_points={
         "console_scripts": [
-            "mcp-ui-explorer=mcp_ui_explorer:mcp.run",
+            "mcp-ui-explorer=mcp_ui_explorer:wrapper.run",
         ],
     },
 ) 

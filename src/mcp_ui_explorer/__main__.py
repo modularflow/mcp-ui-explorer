@@ -1,5 +1,6 @@
 """Main entry point for the MCP UI Explorer package."""
-from .mcp_ui_explorer import mcp
+import asyncio
+from .mcp_ui_explorer import main
 
 if __name__ == "__main__":
-    mcp.run() 
+    asyncio.run(main()) 
