@@ -141,6 +141,7 @@ class UIExplorer:
         self.regions: Dict[str, Any] = {}
 
     def _explore_ui(
+        self,
         region: Optional[Union[RegionType, str]] = None,
         depth: int = 5,
         min_size: int = 5,
@@ -207,6 +208,7 @@ class UIExplorer:
         }
 
     def _screenshot_ui(
+        self,
         region: Optional[Union[RegionType, str]] = None,
         highlight_levels: bool = True,
         output_prefix: str = "ui_hierarchy"
@@ -274,6 +276,7 @@ class UIExplorer:
         return image_data
 
     def _click_ui_element(
+        self,
         control_type: Optional[ControlType] = None,
         text: Optional[str] = None, 
         element_path: Optional[str] = None,
@@ -390,6 +393,7 @@ class UIExplorer:
             }
 
     def _keyboard_input(
+        self,
         text: str,
         delay: float = 0.1,
         interval: float = 0.0,
@@ -430,6 +434,7 @@ class UIExplorer:
             }
         
     def _press_key(
+        self,
         key: str,
         delay: float = 0.1,
         presses: int = 1,
@@ -466,6 +471,7 @@ class UIExplorer:
             }
 
     def _hot_key(
+        self,
         keys: List[str],
         delay: float = 0.1
     ) -> Dict[str, Any]:
