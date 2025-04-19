@@ -36,21 +36,69 @@ You can use this tool to explore and interact with UI elements on the screen. He
     - This returns the complete hierarchy of UI elements
     - You can specify regions like "screen", "top-left", etc.
     - Use parameters like `depth` and `focus_window` to refine the search
+    
+    Example:
+    ```
+    explore_ui(region="screen", depth=3, focus_window=true)
+    explore_ui(region="top-left", min_size=10, visible_only=true)
+    ```
 
     2. **Visualize the UI** with the `screenshot_ui` tool:
     - This returns an image showing all detected UI elements
     - Elements are highlighted with their boundaries
     - Different colors can represent hierarchy levels
+    
+    Example:
+    ```
+    screenshot_ui(region="screen", highlight_levels=true)
+    screenshot_ui(region="bottom-right", output_prefix="my_screenshot")
+    ```
 
     3. **Click on UI elements** with the `click_ui_element` tool:
     - Search by control type (e.g., "Button")
     - Search by text content
     - Or use a specific path from the hierarchy
+    
+    Example:
+    ```
+    click_ui_element(control_type="Button", text="Submit")
+    click_ui_element(element_path="0.children.3.children.2", wait_time=1.0)
+    ```
+    
+    4. **Type text** with the `keyboard_input` tool:
+    - Send text to the currently focused element
+    - Control typing speed and behavior
+    
+    Example:
+    ```
+    keyboard_input(text="Hello world", delay=0.5, press_enter=true)
+    keyboard_input(text="user@example.com", interval=0.1)
+    ```
+    
+    5. **Press keyboard keys** with the `press_key` tool:
+    - Press special keys like Enter, Tab, Escape, etc.
+    - Control timing and repetition
+    
+    Example:
+    ```
+    press_key(key="tab", presses=3)
+    press_key(key="space", delay=1.0)
+    ```
+    
+    6. **Use keyboard shortcuts** with the `hot_key` tool:
+    - Press key combinations like Ctrl+C, Alt+Tab, etc.
+    
+    Example:
+    ```
+    hot_key(keys=["ctrl", "c"])
+    hot_key(keys=["alt", "tab"], delay=0.5)
+    ```
 
     Example workflow:
     1. First explore the UI to understand what's available
     2. Take a screenshot to visualize the elements
     3. Click on a specific element based on what you found
+    4. Type text or use keyboard shortcuts as needed
         """
 
 # Define enums for input validation
@@ -140,7 +188,7 @@ class UIExplorer:
     def __init__(self):
         self.regions: Dict[str, Any] = {}
 
-    def _explore_ui(
+    async def _explore_ui(
         self,
         region: Optional[Union[RegionType, str]] = None,
         depth: int = 5,
@@ -207,7 +255,7 @@ class UIExplorer:
             }
         }
 
-    def _screenshot_ui(
+    async def _screenshot_ui(
         self,
         region: Optional[Union[RegionType, str]] = None,
         highlight_levels: bool = True,
@@ -275,12 +323,12 @@ class UIExplorer:
         
         return image_data
 
-    def _click_ui_element(
+    async def _click_ui_element(
         self,
         control_type: Optional[ControlType] = None,
         text: Optional[str] = None, 
         element_path: Optional[str] = None,
-        wait_time: float = 2.0,
+        wait_time: Optional[float] = 2.0,
         hierarchy_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
@@ -304,7 +352,7 @@ class UIExplorer:
         if hierarchy_data and "hierarchy" in hierarchy_data:
             hierarchy = hierarchy_data["hierarchy"]
         else:
-            result = self._explore_ui(visible_only=True)
+            result = await self._explore_ui(visible_only=True)
             if "hierarchy" in result:
                 hierarchy = result["hierarchy"]
             else:
@@ -392,7 +440,7 @@ class UIExplorer:
                 "all_matches": len(matches)
             }
 
-    def _keyboard_input(
+    async def _keyboard_input(
         self,
         text: str,
         delay: float = 0.1,
@@ -433,7 +481,7 @@ class UIExplorer:
                 "error": f"Failed to type text: {str(e)}"
             }
         
-    def _press_key(
+    async def _press_key(
         self,
         key: str,
         delay: float = 0.1,
@@ -470,7 +518,7 @@ class UIExplorer:
                 "error": f"Failed to press key: {str(e)}"
             }
 
-    def _hot_key(
+    async def _hot_key(
         self,
         keys: List[str],
         delay: float = 0.1
@@ -637,10 +685,6 @@ async def main():
         
         return [types.TextContent(type="text", text=f"Unknown tool: {name}")]
 
-
-        
-
-
     @mcp.get_prompt()
     async def handle_get_prompt(name: str, arguments: dict[str, str] | None) -> types.GetPromptResult:
         logger.debug(f"Handling get_prompt request for {name} with args {arguments}")
@@ -648,16 +692,11 @@ async def main():
             logger.error(f"Unknown prompt: {name}")
             raise ValueError(f"Unknown prompt: {name}")
 
-        if not arguments or "topic" not in arguments:
-            logger.error("Missing required argument: topic")
-            raise ValueError("Missing required argument: topic")
+        prompt = PROMPT_TEMPLATE
 
-        topic = arguments["topic"]
-        prompt = PROMPT_TEMPLATE.format(topic=topic)
-
-        logger.debug(f"Generated prompt template for topic: {topic}")
+        logger.debug(f"Returning UI Explorer prompt")
         return types.GetPromptResult(
-            description=f"Demo template for {topic}",
+            description=f"UI Explorer Guide",
             messages=[
                 types.PromptMessage(
                     role="user",
@@ -681,13 +720,10 @@ async def main():
             ),
         )
 
-
-
 class ServerWrapper():
     """A wrapper to compat with mcp[cli]"""
     def run(self):
         import asyncio
         asyncio.run(main())
-
 
 wrapper = ServerWrapper()

@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="mcp-ui-explorer",
-    version="0.1.3",
+    version="0.1.4",
     author="UI Explorer Developer",
     author_email="example@example.com",
     description="An MCP server for exploring and interacting with UI elements",
