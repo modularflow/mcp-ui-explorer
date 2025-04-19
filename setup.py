@@ -1,11 +1,16 @@
 from setuptools import setup, find_packages
+import re
+
+# Get version from __init__.py
+with open("src/mcp_ui_explorer/__init__.py", encoding="utf8") as f:
+    version = re.search(r'__version__ = "(.*?)"', f.read()).group(1)
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
     name="mcp-ui-explorer",
-    version="0.1.4",
+    version=version,
     author="UI Explorer Developer",
     author_email="example@example.com",
     description="An MCP server for exploring and interacting with UI elements",

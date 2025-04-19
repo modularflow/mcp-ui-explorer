@@ -1,3 +1,7 @@
+"""UI Explorer for MCP."""
+
+__version__ = "0.1.5"
+
 from .mcp_ui_explorer import main, ServerWrapper
 
 # Create a wrapper instance for compatibility
