@@ -212,7 +212,7 @@ def draw_element_hierarchy(image, element, draw, highlight_levels=False, current
     if len(text) > 20:  # Truncate long text
         text = text[:17] + "..."
         
-    label = f"{control_type}"
+    label = f"{element['control_type']}"
     if text:
         label += f": {text}"
         
