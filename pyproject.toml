@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mcp-ui-explorer"
-version = "0.1.0"
+version = "0.1.1"
 description = "An MCP server for exploring and interacting with UI elements"
 readme = "README.md"
 authors = [
