@@ -453,6 +453,17 @@ class UIExplorer:
                 return {"error": f"Error navigating to path {element_path}: {str(e)}"}
         else:
             # Otherwise search the whole hierarchy
+            def search_element(element, current_path=""):
+                # Check if this element has required fields
+                if 'control_type' in element:
+                    matches.append((element, current_path))
+                
+                # Search children
+                if 'children' in element:
+                    for i, child in enumerate(element['children']):
+                        search_element(child, f"{current_path}.children.{i}")
+                        
+            # Search all windows
             for i, window in enumerate(hierarchy):
                 search_element(window, str(i))
         
