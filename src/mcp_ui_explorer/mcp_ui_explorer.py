@@ -45,9 +45,10 @@ You can use this tool to explore and interact with UI elements on the screen. He
     ```
 
     2. **Visualize the UI** with the `screenshot_ui` tool:
-    - This returns an image showing detected UI elements
+    - This takes a screenshot showing detected UI elements
     - Elements are highlighted with their boundaries
     - Different colors can represent hierarchy levels
+    - The image is saved locally and a confirmation message is returned
     
     Example:
     ```
@@ -56,13 +57,13 @@ You can use this tool to explore and interact with UI elements on the screen. He
     ```
 
     3. **Click on UI elements** with the `click_ui_element` tool:
-    - Use element_id (most reliable) or element_path from the hierarchy
-    - Each UI element gets a unique ID when explored
+    - Specify exact X and Y coordinates to click on screen
+    - Optional wait_time parameter controls delay before clicking (default: 2.0 seconds)
     
     Example:
     ```
-    click_ui_element(element_id=5, wait_time=1.0)
-    click_ui_element(element_path="0.children.3.children.2", wait_time=1.0)
+    click_ui_element(x=500, y=300)
+    click_ui_element(x=750, y=400, wait_time=0.5)
     ```
     
     4. **Type text** with the `keyboard_input` tool:
@@ -97,7 +98,7 @@ You can use this tool to explore and interact with UI elements on the screen. He
     Example workflow:
     1. First explore the UI to find buttons: explore_ui(control_type="Button") or find specific elements: explore_ui(control_type="Window", text="firefox")
     2. Take a screenshot to visualize specific elements: screenshot_ui()
-    3. Click on a specific element: click_ui_element()
+    3. Note the coordinates of elements you want to click, then click at those coordinates: click_ui_element(x=500, y=300)
     4. Type text or use keyboard shortcuts as needed
         """
 
@@ -161,10 +162,9 @@ class ScreenshotUIInput(BaseModel):
     output_prefix: str = Field(default="ui_hierarchy", description="Prefix for output files")
 
 class ClickUIElementInput(BaseModel):
-    element_path: Optional[str] = Field(default=None, description="Path to element (e.g., '0.children.3.children.2')")
-    element_id: Optional[int] = Field(default=None, description="ID of the element to click")
+    x: int = Field(description="X coordinate to click")
+    y: int = Field(description="Y coordinate to click")
     wait_time: float = Field(default=2.0, description="Seconds to wait before clicking")
-    hierarchy_data: Optional[Dict[str, Any]] = Field(default=None, description="Hierarchy data from explore_ui (if not provided, will run explore_ui)")
 
 class KeyboardInputInput(BaseModel):
     text: str = Field(description="Text to type")
@@ -305,9 +305,21 @@ class UIExplorer:
         for element in filtered_hierarchy:
             add_ids(element)
         
+        # Clean up elements to remove extra fields
+        simplified_hierarchy = []
+        for element in filtered_hierarchy:
+            simplified = {
+                "control_type": element['control_type'],
+                "text": element['text'],
+                "position": element['position'],
+                "id": element['id'],
+                "properties": element['properties']['automation_id']
+            }
+            simplified_hierarchy.append(simplified)
+        
         # Return the hierarchy and stats
         return {
-            "hierarchy": filtered_hierarchy,
+            "hierarchy": simplified_hierarchy,
             "stats": {
                 "total_matches": total_matches,
                 "control_type": control_type.value if control_type else "all",
@@ -320,7 +332,7 @@ class UIExplorer:
         region: Optional[Union[RegionType, str]] = None,
         highlight_levels: bool = True,
         output_prefix: str = "ui_hierarchy",
-    ) -> bytes:
+    ) -> tuple[bytes, str]:
         """
         Take a screenshot with UI elements highlighted and return it as an image.
         
@@ -375,142 +387,50 @@ class UIExplorer:
         with open(image_path, 'rb') as f:
             image_data = f.read()
         
-        # Clean up the temporary file
-        try:
-            os.remove(image_path)
-        except:
-            pass
+        # Do not clean up the file so the user can access it
+        # try:
+        #     os.remove(image_path)
+        # except:
+        #     pass
         
-        return image_data
+        # Return both the image data and path
+        return (image_data, image_path)
 
     async def _click_ui_element(
         self,
-        element_path: Optional[str] = None,
-        element_id: Optional[int] = None,
-        wait_time: Optional[float] = 2.0,
-        hierarchy_data: Optional[Dict[str, Any]] = None
+        x: int,
+        y: int,
+        wait_time: float
     ) -> Dict[str, Any]:
         """
-        Click on a UI element based on search criteria.
+        Click at specific coordinates.
         
         Args:
-            element_path: Path to element (e.g., "0.children.3.children.2")
-            element_id: ID of the element to click
+            x: X coordinate to click
+            y: Y coordinate to click
             wait_time: Seconds to wait before clicking (default: 2)
-            hierarchy_data: Hierarchy data from explore_ui (if not provided, will run explore_ui)
         
         Returns:
             Result of the click operation
         """
-        # Get hierarchy data if not provided
-        hierarchy = None
-        if hierarchy_data and "hierarchy" in hierarchy_data:
-            hierarchy = hierarchy_data["hierarchy"]
-        else:
-            result = await self._explore_ui(visible_only=True)
-            if "hierarchy" in result:
-                hierarchy = result["hierarchy"]
-            else:
-                return {"error": "Failed to get UI hierarchy"}
-        
-        # Find matching elements
-        matches = []
-        
-        # If element_id is provided, find element by ID
-        if element_id is not None:
-            def find_by_id(element):
-                if 'id' in element and element['id'] == element_id:
-                    return element
-                if 'children' in element:
-                    for child in element['children']:
-                        result = find_by_id(child)
-                        if result:
-                            return result
-                return None
-            
-            for root_element in hierarchy:
-                element = find_by_id(root_element)
-                if element:
-                    matches.append((element, f"id:{element_id}"))
-                    break
-        
-        # Existing path-based logic
-        elif element_path:
-            try:
-                element = hierarchy
-                for part in element_path.split('.'):
-                    if part.isdigit():
-                        element = element[int(part)]
-                    else:
-                        element = element[part]
-                        
-                # Skip if element doesn't have control_type
-                if 'control_type' not in element:
-                    return {"error": f"Element at path {element_path} has no control_type"}
-                    
-                matches.append((element, element_path))
-            except Exception as e:
-                return {"error": f"Error navigating to path {element_path}: {str(e)}"}
-        else:
-            # Otherwise search the whole hierarchy
-            def search_element(element, current_path=""):
-                # Check if this element has required fields
-                if 'control_type' in element:
-                    matches.append((element, current_path))
-                
-                # Search children
-                if 'children' in element:
-                    for i, child in enumerate(element['children']):
-                        search_element(child, f"{current_path}.children.{i}")
-                        
-            # Search all windows
-            for i, window in enumerate(hierarchy):
-                search_element(window, str(i))
-        
-        if not matches:
-            return {"error": "No matching elements found"}
-        
-        # Use the first match
-        selected, path = matches[0]
-        
-        # Verify element has required fields
-        if 'control_type' not in selected:
-            return {"error": "Selected element has no control_type"}
-            
-        if 'position' not in selected:
-            return {"error": "Selected element has no position data"}
-        
-        # Prepare element info for the response
-        element_info = {
-            "type": selected['control_type'],
-            "text": selected['text'],
-            "path": path,
-            "position": selected['position']
-        }
-        
         # Wait before clicking
         import time
         time.sleep(wait_time)
-        
-        # Click the element
-        position = selected['position']
-        x = position['left'] + position['width'] // 2
-        y = position['top'] + position['height'] // 2
         
         try:
             pyautogui.click(x, y)
             return {
                 "success": True,
-                "message": f"Clicked {selected['control_type']} element at ({x}, {y})",
-                "element": element_info,
-                "all_matches": len(matches)
+                "message": f"Clicked at coordinates ({x}, {y})",
+                "position": {
+                    "x": x,
+                    "y": y
+                }
             }
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to click: {str(e)}",
-                "element": element_info,
-                "all_matches": len(matches)
+                "error": f"Failed to click at coordinates ({x}, {y}): {str(e)}"
             }
 
     async def _keyboard_input(
@@ -670,12 +590,12 @@ async def main():
             ),
             Tool(
                 name="screenshot_ui",
-                description="Take a screenshot with UI elements highlighted and return it as an image. Control type is required.",
+                description="Take a screenshot with UI elements highlighted and return confirmation message.",
                 inputSchema=ScreenshotUIInput.model_json_schema(),
             ),
             Tool(
                 name="click_ui_element",
-                description="Click on a UI element based on either element_id or element_path. Specify one of these parameters to click a specific element.",
+                description="Click at specific X,Y coordinates on the screen.",
                 inputSchema=ClickUIElementInput.model_json_schema(),
             ),
             Tool(
@@ -712,20 +632,21 @@ async def main():
         
         elif name == "screenshot_ui":
             args = ScreenshotUIInput(**arguments)
-            image_data = await ui_explorer._screenshot_ui(
+            image_data, image_path = await ui_explorer._screenshot_ui(
                 args.region,
                 args.highlight_levels,
                 args.output_prefix,
             )
-            return [types.TextContent(type="image", image=image_data)]
+            return [
+                types.TextContent(type="text", text=f"Screenshot saved to: {image_path}")
+            ]
         
         elif name == "click_ui_element":
             args = ClickUIElementInput(**arguments)
             result = await ui_explorer._click_ui_element(
-                args.element_path,
-                args.element_id,
-                args.wait_time,
-                args.hierarchy_data
+                x=args.x,
+                y=args.y,
+                wait_time=args.wait_time
             )
             return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
         

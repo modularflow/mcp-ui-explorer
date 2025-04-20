@@ -1,6 +1,6 @@
 """UI Explorer for MCP."""
 
-__version__ = "0.1.9"
+__version__ = "0.1.12"
 
 from .mcp_ui_explorer import main, ServerWrapper
 
