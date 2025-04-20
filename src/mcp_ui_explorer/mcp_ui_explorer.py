@@ -48,24 +48,21 @@ You can use this tool to explore and interact with UI elements on the screen. He
     - This returns an image showing detected UI elements
     - Elements are highlighted with their boundaries
     - Different colors can represent hierarchy levels
-    - Also supports text filtering for finding specific elements
     
     Example:
     ```
-    screenshot_ui(region="screen", control_type="Button")
-    screenshot_ui(region="bottom-right", control_type="Edit", text="search")
+    screenshot_ui(region="screen")
+    screenshot_ui(region="bottom-right")
     ```
 
     3. **Click on UI elements** with the `click_ui_element` tool:
-    - Control type is required (e.g., "Button")
-    - You can filter by text content
-    - Or use a specific path from the hierarchy
+    - Use element_id (most reliable) or element_path from the hierarchy
+    - Each UI element gets a unique ID when explored
     
     Example:
     ```
-    click_ui_element(control_type="Button", text="Submit")
-    click_ui_element(control_type="Window", text="firefox")
-    click_ui_element(control_type="Button", element_path="0.children.3.children.2", wait_time=1.0)
+    click_ui_element(element_id=5, wait_time=1.0)
+    click_ui_element(element_path="0.children.3.children.2", wait_time=1.0)
     ```
     
     4. **Type text** with the `keyboard_input` tool:
@@ -98,11 +95,10 @@ You can use this tool to explore and interact with UI elements on the screen. He
     ```
 
     Example workflow:
-    1. First explore the UI to find buttons: explore_ui(control_type="Button")
-    2. Find specific elements: explore_ui(control_type="Window", text="firefox")
-    3. Take a screenshot to visualize specific elements: screenshot_ui(control_type="Button", text="submit")
-    4. Click on a specific element: click_ui_element(control_type="Button", text="Submit")
-    5. Type text or use keyboard shortcuts as needed
+    1. First explore the UI to find buttons: explore_ui(control_type="Button") or find specific elements: explore_ui(control_type="Window", text="firefox")
+    2. Take a screenshot to visualize specific elements: screenshot_ui()
+    3. Click on a specific element: click_ui_element()
+    4. Type text or use keyboard shortcuts as needed
         """
 
 # Define enums for input validation
@@ -166,6 +162,7 @@ class ScreenshotUIInput(BaseModel):
 
 class ClickUIElementInput(BaseModel):
     element_path: Optional[str] = Field(default=None, description="Path to element (e.g., '0.children.3.children.2')")
+    element_id: Optional[int] = Field(default=None, description="ID of the element to click")
     wait_time: float = Field(default=2.0, description="Seconds to wait before clicking")
     hierarchy_data: Optional[Dict[str, Any]] = Field(default=None, description="Hierarchy data from explore_ui (if not provided, will run explore_ui)")
 
@@ -293,6 +290,21 @@ class UIExplorer:
         # Calculate stats
         total_matches = len(filtered_hierarchy)
         
+        # Add unique IDs to each element
+        element_id = 0
+        
+        def add_ids(element):
+            nonlocal element_id
+            element['id'] = element_id
+            element_id += 1
+            if 'children' in element:
+                for child in element['children']:
+                    add_ids(child)
+        
+        # Process all elements to add IDs
+        for element in filtered_hierarchy:
+            add_ids(element)
+        
         # Return the hierarchy and stats
         return {
             "hierarchy": filtered_hierarchy,
@@ -374,6 +386,7 @@ class UIExplorer:
     async def _click_ui_element(
         self,
         element_path: Optional[str] = None,
+        element_id: Optional[int] = None,
         wait_time: Optional[float] = 2.0,
         hierarchy_data: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
@@ -382,6 +395,7 @@ class UIExplorer:
         
         Args:
             element_path: Path to element (e.g., "0.children.3.children.2")
+            element_id: ID of the element to click
             wait_time: Seconds to wait before clicking (default: 2)
             hierarchy_data: Hierarchy data from explore_ui (if not provided, will run explore_ui)
         
@@ -402,14 +416,26 @@ class UIExplorer:
         # Find matching elements
         matches = []
         
-        def search_element(element, current_path=""):
-            # Search children
-            if 'children' in element:
-                for i, child in enumerate(element['children']):
-                    search_element(child, f"{current_path}.children.{i}")
+        # If element_id is provided, find element by ID
+        if element_id is not None:
+            def find_by_id(element):
+                if 'id' in element and element['id'] == element_id:
+                    return element
+                if 'children' in element:
+                    for child in element['children']:
+                        result = find_by_id(child)
+                        if result:
+                            return result
+                return None
+            
+            for root_element in hierarchy:
+                element = find_by_id(root_element)
+                if element:
+                    matches.append((element, f"id:{element_id}"))
+                    break
         
-        # If path is provided, navigate directly to that element
-        if element_path:
+        # Existing path-based logic
+        elif element_path:
             try:
                 element = hierarchy
                 for part in element_path.split('.'):
@@ -638,7 +664,7 @@ async def main():
             ),
             Tool(
                 name="click_ui_element",
-                description="Click on a UI element based on search criteria. Control type is required.",
+                description="Click on a UI element based on either element_id or element_path. Specify one of these parameters to click a specific element.",
                 inputSchema=ClickUIElementInput.model_json_schema(),
             ),
             Tool(
@@ -686,6 +712,7 @@ async def main():
             args = ClickUIElementInput(**arguments)
             result = await ui_explorer._click_ui_element(
                 args.element_path,
+                args.element_id,
                 args.wait_time,
                 args.hierarchy_data
             )

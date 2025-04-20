@@ -472,6 +472,21 @@ def main():
     # Process the hierarchy for export
     processed_hierarchy = process_hierarchy_for_export(filtered_ui_hierarchy)
     
+    # Add unique IDs to each element
+    element_id = 0
+    
+    def add_ids(element):
+        nonlocal element_id
+        element['id'] = element_id
+        element_id += 1
+        if 'children' in element:
+            for child in element['children']:
+                add_ids(child)
+    
+    # Process all elements to add IDs
+    for element in processed_hierarchy:
+        add_ids(element)
+    
     # Save in requested format(s)
     if args.format in ['json', 'both']:
         json_path = f"{args.output}_{timestamp}.json"
