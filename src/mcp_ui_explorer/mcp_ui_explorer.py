@@ -153,7 +153,7 @@ class ExploreUIInput(BaseModel):
     min_size: int = Field(default=5, description="Minimum element size to include")
     focus_window: bool = Field(default=False, description="Only analyze the foreground window")
     visible_only: bool = Field(default=True, description="Only include elements visible on screen")
-    control_type: ControlType = Field(default=ControlType.BUTTON, description="Only include elements of this control type (default: Button)")
+    control_type: ControlType = Field(default=ControlType.BUTTON, description="Only include elements of this control type (default: ALL)")
     text: Optional[str] = Field(default=None, description="Only include elements containing this text (case-insensitive, partial match)")
 
 class ScreenshotUIInput(BaseModel):
@@ -163,14 +163,8 @@ class ScreenshotUIInput(BaseModel):
     )
     highlight_levels: bool = Field(default=True, description="Use different colors for hierarchy levels")
     output_prefix: str = Field(default="ui_hierarchy", description="Prefix for output files")
-    control_type: ControlType = Field(default=ControlType.BUTTON, description="Only include elements of this control type (default: Button)")
-    text: Optional[str] = Field(default=None, description="Only include elements containing this text (case-insensitive, partial match)")
 
 class ClickUIElementInput(BaseModel):
-    control_type: ControlType = Field(
-        description="Control type to search for (e.g., 'Button')"
-    )
-    text: Optional[str] = Field(default=None, description="Text content to search for")
     element_path: Optional[str] = Field(default=None, description="Path to element (e.g., '0.children.3.children.2')")
     wait_time: float = Field(default=2.0, description="Seconds to wait before clicking")
     hierarchy_data: Optional[Dict[str, Any]] = Field(default=None, description="Hierarchy data from explore_ui (if not provided, will run explore_ui)")
@@ -314,8 +308,6 @@ class UIExplorer:
         region: Optional[Union[RegionType, str]] = None,
         highlight_levels: bool = True,
         output_prefix: str = "ui_hierarchy",
-        control_type: ControlType = ControlType.BUTTON,
-        text: Optional[str] = None
     ) -> bytes:
         """
         Take a screenshot with UI elements highlighted and return it as an image.
@@ -324,8 +316,6 @@ class UIExplorer:
             region: Region to analyze: predefined regions or custom 'left,top,right,bottom' coordinates
             highlight_levels: Use different colors for hierarchy levels (default: True)
             output_prefix: Prefix for output files (default: "ui_hierarchy")
-            control_type: Only include elements of this control type (default: Button)
-            text: Only include elements containing this text (case-insensitive, partial match)
         
         Returns:
             Screenshot with UI elements highlighted
@@ -364,51 +354,10 @@ class UIExplorer:
             focus_only=False,
             min_size=5,
             visible_only=True
-        )
-        
-        # Filter by control type and text
-        if control_type or text:
-            flat_matches = []
-            
-            def collect_matches(element, parent_path=""):
-                # Check control type match
-                control_type_match = True
-                if control_type:
-                    control_type_match = element['control_type'] == control_type.value
-                
-                # Check text match
-                text_match = True
-                if text:
-                    text_match = text.lower() in element['text'].lower()
-                
-                current_path = parent_path
-                if current_path:
-                    current_path += ".children"
-                
-                # If this element matches our criteria, add it to flat matches
-                if control_type_match and text_match:
-                    # Create a copy without children for flat listing
-                    element_copy = element.copy()
-                    element_copy['children'] = []  # Empty children list
-                    flat_matches.append(element_copy)
-                
-                # Always process children to find all matches
-                if 'children' in element:
-                    for i, child in enumerate(element['children']):
-                        child_path = f"{current_path}.{i}" if current_path else str(i)
-                        collect_matches(child, child_path)
-            
-            # Process all elements to collect matches
-            for i, element in enumerate(ui_hierarchy):
-                collect_matches(element, str(i))
-            
-            # Create a new hierarchy with just these elements at the top level
-            filtered_hierarchy = flat_matches
-        else:
-            filtered_hierarchy = ui_hierarchy
+        )   
         
         # Create visualization
-        image_path = visualize_ui_hierarchy(filtered_hierarchy, output_prefix, highlight_levels)
+        image_path = visualize_ui_hierarchy(ui_hierarchy, output_prefix, highlight_levels)
         
         # Load the image and return it
         with open(image_path, 'rb') as f:
@@ -424,8 +373,6 @@ class UIExplorer:
 
     async def _click_ui_element(
         self,
-        control_type: ControlType,
-        text: Optional[str] = None, 
         element_path: Optional[str] = None,
         wait_time: Optional[float] = 2.0,
         hierarchy_data: Optional[Dict[str, Any]] = None
@@ -434,8 +381,6 @@ class UIExplorer:
         Click on a UI element based on search criteria.
         
         Args:
-            control_type: Control type to search for (e.g., "Button")
-            text: Text content to search for
             element_path: Path to element (e.g., "0.children.3.children.2")
             wait_time: Seconds to wait before clicking (default: 2)
             hierarchy_data: Hierarchy data from explore_ui (if not provided, will run explore_ui)
@@ -458,23 +403,6 @@ class UIExplorer:
         matches = []
         
         def search_element(element, current_path=""):
-            # Skip elements without control_type
-            if 'control_type' not in element:
-                return
-                
-            # Check if this element matches
-            control_type_match = element['control_type'] == control_type.value
-                
-            text_match = False
-            if text:
-                if text.lower() in element['text'].lower():
-                    text_match = True
-            else:
-                text_match = True
-                
-            if control_type_match and text_match:
-                matches.append((element, current_path))
-                
             # Search children
             if 'children' in element:
                 for i, child in enumerate(element['children']):
@@ -751,16 +679,12 @@ async def main():
                 args.region,
                 args.highlight_levels,
                 args.output_prefix,
-                args.control_type,
-                args.text
             )
             return [types.TextContent(type="image", image=image_data)]
         
         elif name == "click_ui_element":
             args = ClickUIElementInput(**arguments)
             result = await ui_explorer._click_ui_element(
-                args.control_type,
-                args.text,
                 args.element_path,
                 args.wait_time,
                 args.hierarchy_data
