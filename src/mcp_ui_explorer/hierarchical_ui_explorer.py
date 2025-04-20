@@ -20,6 +20,13 @@ def create_parser():
     parser.add_argument('--highlight-levels', action='store_true', help='Use different colors for hierarchy levels')
     parser.add_argument('--format', choices=['json', 'xml', 'both'], default='json', help='Output format (json, xml, or both)')
     parser.add_argument('--visible-only', action='store_true', help='Only include elements visible on screen')
+    parser.add_argument('--control-type', type=str, choices=[
+        'Button', 'Edit', 'Text', 'CheckBox', 'RadioButton', 'ComboBox', 
+        'List', 'ListItem', 'Menu', 'MenuItem', 'Tree', 'TreeItem', 
+        'ToolBar', 'Tab', 'TabItem', 'Window', 'Dialog', 'Pane', 
+        'Group', 'StatusBar', 'Image', 'Hyperlink'], 
+        default='Button', required=False, help='Only include elements of this control type (default: Button)')
+    parser.add_argument('--text', type=str, help='Only include elements containing this text (case-insensitive, partial match)')
     return parser
 
 # Define predefined regions
@@ -266,6 +273,48 @@ def count_elements(element):
         count += count_elements(child)
     return count
 
+def process_hierarchy_for_export(hierarchy):
+    """Process the UI hierarchy data before export to simplify structure"""
+    processed_hierarchy = []
+    
+    def process_element(element):
+        # Skip Document elements
+        if element['control_type'] == "Document":
+            return None
+        
+        # Verify control_type is present (should always be, but just to be safe)
+        if 'control_type' not in element:
+            print(f"Error: Element missing required 'control_type' field: {element}")
+            return None
+            
+        # Create new element with only needed fields
+        processed = {
+            'control_type': element['control_type'],
+            'text': element['text'],
+            'position': element['position']
+        }
+        
+        # Process children recursively
+        processed_children = []
+        for child in element['children']:
+            processed_child = process_element(child)
+            if processed_child:
+                processed_children.append(processed_child)
+        
+        # Only add children if there are any
+        if processed_children:
+            processed['children'] = processed_children
+            
+        return processed
+    
+    # Process each top-level window
+    for window in hierarchy:
+        processed_window = process_element(window)
+        if processed_window:
+            processed_hierarchy.append(processed_window)
+            
+    return processed_hierarchy
+
 def convert_to_xml(hierarchy):
     """Convert UI hierarchy to XML format"""
     root = ET.Element("UIHierarchy")
@@ -286,15 +335,8 @@ def convert_to_xml(hierarchy):
         element.set('width', str(pos['width']))
         element.set('height', str(pos['height']))
         
-        # Add other properties
-        props = ET.SubElement(element, "Properties")
-        for key, value in element_dict['properties'].items():
-            if value:  # Only add non-empty properties
-                prop = ET.SubElement(props, key.replace(' ', '_'))
-                prop.text = str(value)
-        
-        # Add children
-        if element_dict['children']:
+        # Add children if they exist
+        if 'children' in element_dict and element_dict['children']:
             children = ET.SubElement(element, "Children")
             for child in element_dict['children']:
                 add_element_to_xml(children, child)
@@ -365,33 +407,81 @@ def main():
         visible_only=args.visible_only
     )
     
-    # Print stats
-    total_windows = len(ui_hierarchy)
-    total_elements = sum(count_elements(window) for window in ui_hierarchy)
-    max_nesting = max(calculate_nesting_level(window) for window in ui_hierarchy) if ui_hierarchy else 0
+    # Filter by control type and text
+    print(f"Filtering elements by control type: {args.control_type}")
+    if args.text:
+        print(f"Filtering elements containing text: '{args.text}'")
+    
+    def filter_by_control_type_and_text(elements, control_type, text_filter=None):
+        # This will store all directly matching elements in a flat list
+        flat_matches = []
+        
+        def collect_matches(element, parent_path=""):
+            # Check if element matches control_type and text filter
+            control_type_match = element['control_type'] == control_type
+            
+            text_match = True
+            if text_filter:
+                text_match = text_filter.lower() in element['text'].lower()
+            
+            current_path = parent_path
+            if current_path:
+                current_path += ".children"
+            
+            # If this element matches our criteria, add it to flat matches
+            if control_type_match and text_match:
+                # Create a copy without children to add to flat list
+                element_copy = element.copy()
+                element_copy['children'] = []  # Empty children list
+                flat_matches.append(element_copy)
+            
+            # Always process children to find all matches
+            for i, child in enumerate(element['children']):
+                child_path = f"{current_path}.{i}" if current_path else str(i)
+                collect_matches(child, child_path)
+        
+        # Process all elements to collect matches
+        for i, element in enumerate(elements):
+            collect_matches(element, str(i))
+        
+        return flat_matches
+    
+    # Apply filtering and get flat list of matching elements
+    matched_elements = filter_by_control_type_and_text(ui_hierarchy, args.control_type, args.text)
+    
+    # Create a new hierarchy with just these elements at the top level
+    filtered_ui_hierarchy = []
+    for element in matched_elements:
+        filtered_ui_hierarchy.append(element)
+    
+    # Print filtered stats
+    total_elements = len(filtered_ui_hierarchy)
     
     print(f"Analysis complete:")
-    print(f"- Found {total_windows} top-level windows")
-    print(f"- Total of {total_elements} UI elements")
-    print(f"- Maximum nesting level: {max_nesting}")
+    print(f"- Found {total_elements} matching '{args.control_type}' elements")
+    if args.text:
+        print(f"- Filtered by text containing '{args.text}'")
     
     # Create visualization
     print("Creating visualization...")
-    image_path = visualize_ui_hierarchy(ui_hierarchy, args.output, args.highlight_levels)
+    image_path = visualize_ui_hierarchy(filtered_ui_hierarchy, args.output, args.highlight_levels)
     
     # Timestamp for file naming
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    # Process the hierarchy for export
+    processed_hierarchy = process_hierarchy_for_export(filtered_ui_hierarchy)
     
     # Save in requested format(s)
     if args.format in ['json', 'both']:
         json_path = f"{args.output}_{timestamp}.json"
         with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(ui_hierarchy, f, indent=2, ensure_ascii=False)
+            json.dump(processed_hierarchy, f, indent=2, ensure_ascii=False)
         print(f"UI hierarchy JSON saved to: {os.path.abspath(json_path)}")
     
     if args.format in ['xml', 'both']:
         xml_path = f"{args.output}_{timestamp}.xml"
-        xml_content = convert_to_xml(ui_hierarchy)
+        xml_content = convert_to_xml(processed_hierarchy)
         with open(xml_path, 'w', encoding='utf-8') as f:
             f.write(xml_content)
         print(f"UI hierarchy XML saved to: {os.path.abspath(xml_path)}")
@@ -409,8 +499,12 @@ def main():
         print("Please open the image manually to view the results")
     
     # Create a script for clicking on elements from the hierarchy
-    click_script_path = create_click_script(args.output, json_path if args.format in ['json', 'both'] else None)
-    print(f"Click helper script created: {os.path.abspath(click_script_path)}")
+    if args.format in ['json', 'both']:
+        click_script_path = create_click_script(args.output, json_path)
+        print(f"Click helper script created: {os.path.abspath(click_script_path)}")
+    else:
+        click_script_path = create_click_script(args.output)
+        print(f"Click helper script created: {os.path.abspath(click_script_path)}")
 
 def create_click_script(output_prefix, json_path=None):
     """Create a script for clicking on elements from the JSON hierarchy"""
@@ -429,8 +523,13 @@ import time
 def create_parser():
     parser = argparse.ArgumentParser(description='Click on a UI element from the hierarchy')
     parser.add_argument('--json', default='{os.path.basename(json_path)}', help='Path to JSON hierarchy file')
-    parser.add_argument('--type', help='Control type to search for (e.g., Button)')
-    parser.add_argument('--text', help='Text content to search for')
+    parser.add_argument('--type', default='Button', required=False, choices=[
+        'Button', 'Edit', 'Text', 'CheckBox', 'RadioButton', 'ComboBox', 
+        'List', 'ListItem', 'Menu', 'MenuItem', 'Tree', 'TreeItem', 
+        'ToolBar', 'Tab', 'TabItem', 'Window', 'Dialog', 'Pane', 
+        'Group', 'StatusBar', 'Image', 'Hyperlink'
+    ], help='Control type to search for (default: Button)')
+    parser.add_argument('--text', help='Text content to search for (case-insensitive, partial match)')
     parser.add_argument('--wait', type=float, default=2, help='Seconds to wait before clicking')
     parser.add_argument('--path', help='Path to element (e.g., 0.children.3.children.2)')
     return parser
@@ -448,8 +547,9 @@ def find_elements_by_criteria(hierarchy, control_type=None, text=None, path=None
             matches.append((element, current_path))
             
         # Search children
-        for i, child in enumerate(element['children']):
-            search_element(child, f"{{current_path}}.children.{{i}}")
+        if 'children' in element:
+            for i, child in enumerate(element['children']):
+                search_element(child, f"{{current_path}}.children.{{i}}")
     
     # If path is provided, navigate directly to that element
     if path:

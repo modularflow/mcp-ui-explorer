@@ -6,9 +6,14 @@ import time
 
 def create_parser():
     parser = argparse.ArgumentParser(description='Click on a UI element from the hierarchy')
-    parser.add_argument('--json', default='ui_hierarchy_20250417_174039.json', help='Path to JSON hierarchy file')
-    parser.add_argument('--type', help='Control type to search for (e.g., Button)')
-    parser.add_argument('--text', help='Text content to search for')
+    parser.add_argument('--json', default='ui_hierarchy_20250419_182127.json', help='Path to JSON hierarchy file')
+    parser.add_argument('--type', default='Button', required=False, choices=[
+        'Button', 'Edit', 'Text', 'CheckBox', 'RadioButton', 'ComboBox', 
+        'List', 'ListItem', 'Menu', 'MenuItem', 'Tree', 'TreeItem', 
+        'ToolBar', 'Tab', 'TabItem', 'Window', 'Dialog', 'Pane', 
+        'Group', 'StatusBar', 'Image', 'Hyperlink'
+    ], help='Control type to search for (default: Button)')
+    parser.add_argument('--text', help='Text content to search for (case-insensitive, partial match)')
     parser.add_argument('--wait', type=float, default=2, help='Seconds to wait before clicking')
     parser.add_argument('--path', help='Path to element (e.g., 0.children.3.children.2)')
     return parser
@@ -26,8 +31,9 @@ def find_elements_by_criteria(hierarchy, control_type=None, text=None, path=None
             matches.append((element, current_path))
             
         # Search children
-        for i, child in enumerate(element['children']):
-            search_element(child, f"{current_path}.children.{i}")
+        if 'children' in element:
+            for i, child in enumerate(element['children']):
+                search_element(child, f"{current_path}.children.{i}")
     
     # If path is provided, navigate directly to that element
     if path:
