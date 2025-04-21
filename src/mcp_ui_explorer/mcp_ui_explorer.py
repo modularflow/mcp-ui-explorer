@@ -37,6 +37,7 @@ You can use this tool to explore and interact with UI elements on the screen. He
     - You can specify regions like "screen", "top-left", etc.
     - Filter by text content with the text parameter (case-insensitive, partial match)
     - When filtering by control_type or text, results are automatically flattened
+    - Returns current cursor position as well
     
     Example:
     ```
@@ -49,6 +50,7 @@ You can use this tool to explore and interact with UI elements on the screen. He
     - Elements are highlighted with their boundaries
     - Different colors can represent hierarchy levels
     - The image is saved locally and a confirmation message is returned
+    - Returns current cursor position as well
     
     Example:
     ```
@@ -56,7 +58,18 @@ You can use this tool to explore and interact with UI elements on the screen. He
     screenshot_ui(region="bottom-right")
     ```
 
-    3. **Click on UI elements** with the `click_ui_element` tool:
+    3. **Find UI elements near cursor** with the `find_elements_near_cursor` tool:
+    - Finds UI elements closest to the current cursor position
+    - You can specify maximum distance from cursor and limit number of results
+    - Filter by control type with the control_type parameter
+    
+    Example:
+    ```
+    find_elements_near_cursor(max_distance=200, control_type="Button", limit=10)
+    find_elements_near_cursor(max_distance=100)
+    ```
+
+    4. **Click on UI elements** with the `click_ui_element` tool:
     - Specify exact X and Y coordinates to click on screen
     - Optional wait_time parameter controls delay before clicking (default: 2.0 seconds)
     
@@ -66,7 +79,7 @@ You can use this tool to explore and interact with UI elements on the screen. He
     click_ui_element(x=750, y=400, wait_time=0.5)
     ```
     
-    4. **Type text** with the `keyboard_input` tool:
+    5. **Type text** with the `keyboard_input` tool:
     - Send text to the currently focused element
     - Control typing speed and behavior
     
@@ -76,7 +89,7 @@ You can use this tool to explore and interact with UI elements on the screen. He
     keyboard_input(text="user@example.com", interval=0.1)
     ```
     
-    5. **Press keyboard keys** with the `press_key` tool:
+    6. **Press keyboard keys** with the `press_key` tool:
     - Press special keys like Enter, Tab, Escape, etc.
     - Control timing and repetition
     
@@ -86,7 +99,7 @@ You can use this tool to explore and interact with UI elements on the screen. He
     press_key(key="space", delay=1.0)
     ```
     
-    6. **Use keyboard shortcuts** with the `hot_key` tool:
+    7. **Use keyboard shortcuts** with the `hot_key` tool:
     - Press key combinations like Ctrl+C, Alt+Tab, etc.
     
     Example:
@@ -98,8 +111,9 @@ You can use this tool to explore and interact with UI elements on the screen. He
     Example workflow:
     1. First explore the UI to find buttons: explore_ui(control_type="Button") or find specific elements: explore_ui(control_type="Window", text="firefox")
     2. Take a screenshot to visualize specific elements: screenshot_ui()
-    3. Note the coordinates of elements you want to click, then click at those coordinates: click_ui_element(x=500, y=300)
-    4. Type text or use keyboard shortcuts as needed
+    3. Or find elements near the cursor: find_elements_near_cursor(max_distance=100)
+    4. Note the coordinates of elements you want to click, then click at those coordinates: click_ui_element(x=500, y=300)
+    5. Type text or use keyboard shortcuts as needed
         """
 
 # Define enums for input validation
@@ -146,12 +160,17 @@ class ExploreUIInput(BaseModel):
         default=None, 
         description="Region to analyze: predefined regions or custom 'left,top,right,bottom' coordinates"
     )
-    depth: int = Field(default=5, description="Maximum depth to analyze")
+    depth: int = Field(default=8, description="Maximum depth to analyze")
     min_size: int = Field(default=5, description="Minimum element size to include")
     focus_window: bool = Field(default=False, description="Only analyze the foreground window")
     visible_only: bool = Field(default=True, description="Only include elements visible on screen")
     control_type: ControlType = Field(default=ControlType.BUTTON, description="Only include elements of this control type (default: ALL)")
     text: Optional[str] = Field(default=None, description="Only include elements containing this text (case-insensitive, partial match)")
+
+class FindNearCursorInput(BaseModel):
+    max_distance: int = Field(default=100, description="Maximum distance from cursor to include elements")
+    control_type: Optional[ControlType] = Field(default=None, description="Only include elements of this control type")
+    limit: int = Field(default=5, description="Maximum number of elements to return")
 
 class ScreenshotUIInput(BaseModel):
     region: Optional[Union[RegionType, str]] = Field(
@@ -186,10 +205,32 @@ class UIExplorer:
     def __init__(self):
         self.regions: Dict[str, Any] = {}
 
+    async def _get_cursor_position(self) -> Dict[str, Any]:
+        """
+        Get the current position of the mouse cursor.
+        
+        Returns:
+            Dictionary with current cursor coordinates
+        """
+        try:
+            x, y = pyautogui.position()
+            return {
+                "success": True,
+                "position": {
+                    "x": x,
+                    "y": y
+                }
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to get cursor position: {str(e)}"
+            }
+
     async def _explore_ui(
         self,
         region: Optional[Union[RegionType, str]] = None,
-        depth: int = 5,
+        depth: int = 8,
         min_size: int = 5,
         focus_window: bool = False,
         visible_only: bool = True,
@@ -201,7 +242,7 @@ class UIExplorer:
         
         Args:
             region: Region to analyze: predefined regions or custom 'left,top,right,bottom' coordinates
-            depth: Maximum depth to analyze (default: 5)
+            depth: Maximum depth to analyze (default: 8)
             min_size: Minimum element size to include (default: 5)
             focus_window: Only analyze the foreground window (default: False)
             visible_only: Only include elements visible on screen (default: True)
@@ -324,7 +365,8 @@ class UIExplorer:
                 "total_matches": total_matches,
                 "control_type": control_type.value if control_type else "all",
                 "text_filter": text if text else None
-            }
+            },
+            "cursor_position": (await self._get_cursor_position())["position"]
         }
 
     async def _screenshot_ui(
@@ -332,7 +374,7 @@ class UIExplorer:
         region: Optional[Union[RegionType, str]] = None,
         highlight_levels: bool = True,
         output_prefix: str = "ui_hierarchy",
-    ) -> tuple[bytes, str]:
+    ) -> tuple[bytes, str, Dict[str, Any]]:
         """
         Take a screenshot with UI elements highlighted and return it as an image.
         
@@ -342,7 +384,7 @@ class UIExplorer:
             output_prefix: Prefix for output files (default: "ui_hierarchy")
         
         Returns:
-            Screenshot with UI elements highlighted
+            Tuple of (image_data, image_path, cursor_position)
         """
         # Parse region
         region_coords = None
@@ -374,7 +416,7 @@ class UIExplorer:
         # Analyze UI elements
         ui_hierarchy = analyze_ui_hierarchy(
             region=region_coords,
-            max_depth=5,
+            max_depth=8,
             focus_only=False,
             min_size=5,
             visible_only=True
@@ -394,7 +436,7 @@ class UIExplorer:
         #     pass
         
         # Return both the image data and path
-        return (image_data, image_path)
+        return (image_data, image_path, await self._get_cursor_position())
 
     async def _click_ui_element(
         self,
@@ -547,6 +589,92 @@ class UIExplorer:
                 "error": f"Failed to press hotkey: {str(e)}"
             }
 
+    async def _find_elements_near_cursor(
+        self,
+        max_distance: int = 100,
+        control_type: Optional[ControlType] = None,
+        limit: int = 5
+    ) -> Dict[str, Any]:
+        """
+        Find UI elements closest to the current cursor position.
+        
+        Args:
+            max_distance: Maximum distance from cursor to include elements (default: 100)
+            control_type: Only include elements of this control type (default: None)
+            limit: Maximum number of elements to return (default: 5)
+        
+        Returns:
+            UI elements closest to the cursor position
+        """
+        # Get current cursor position
+        cursor_pos = await self._get_cursor_position()
+        if not cursor_pos["success"]:
+            return cursor_pos
+            
+        cursor_x, cursor_y = cursor_pos["position"]["x"], cursor_pos["position"]["y"]
+        
+        # Get all UI elements
+        screen_width, screen_height = pyautogui.size()
+        ui_hierarchy = analyze_ui_hierarchy(
+            region=(0, 0, screen_width, screen_height),
+            max_depth=8,
+            focus_only=False,
+            min_size=5,
+            visible_only=True
+        )
+        
+        # Flatten hierarchy and calculate distances
+        elements_with_distance = []
+        
+        def process_element(element):
+            # Skip elements without position
+            if 'position' not in element:
+                return
+                
+            # Apply control type filter if specified
+            if control_type and element['control_type'] != control_type.value:
+                return
+                
+            # Calculate center point of element
+            x1, y1, x2, y2 = element['position']
+            element_center_x = (x1 + x2) / 2
+            element_center_y = (y1 + y2) / 2
+            
+            # Calculate Euclidean distance
+            distance = ((element_center_x - cursor_x) ** 2 + (element_center_y - cursor_y) ** 2) ** 0.5
+            
+            # Add to list if within max_distance
+            if distance <= max_distance:
+                element_copy = {
+                    "control_type": element['control_type'],
+                    "text": element['text'],
+                    "position": element['position'],
+                    "distance": round(distance, 2),
+                    "properties": element['properties']['automation_id'] if 'properties' in element and 'automation_id' in element['properties'] else ""
+                }
+                elements_with_distance.append(element_copy)
+            
+            # Process children
+            if 'children' in element:
+                for child in element['children']:
+                    process_element(child)
+        
+        # Process all root elements
+        for element in ui_hierarchy:
+            process_element(element)
+            
+        # Sort by distance and limit results
+        elements_with_distance.sort(key=lambda x: x['distance'])
+        closest_elements = elements_with_distance[:limit]
+        
+        return {
+            "success": True,
+            "cursor_position": cursor_pos["position"],
+            "elements": closest_elements,
+            "total_found": len(elements_with_distance),
+            "showing": min(len(elements_with_distance), limit)
+        }
+
 async def main():
     ui_explorer = UIExplorer()
     mcp = Server("UI Explorer")
@@ -612,6 +740,11 @@ async def main():
                 name="hot_key",
                 description="Press a keyboard shortcut combination (like Ctrl+C, Alt+Tab, etc.)",
                 inputSchema=HotKeyInput.model_json_schema(),
+            ),
+            Tool(
+                name="find_elements_near_cursor",
+                description="Find UI elements closest to the current cursor position.",
+                inputSchema=FindNearCursorInput.model_json_schema(),
             )
         ]
 
@@ -632,13 +765,14 @@ async def main():
         
         elif name == "screenshot_ui":
             args = ScreenshotUIInput(**arguments)
-            image_data, image_path = await ui_explorer._screenshot_ui(
+            image_data, image_path, cursor_position = await ui_explorer._screenshot_ui(
                 args.region,
                 args.highlight_levels,
                 args.output_prefix,
             )
             return [
-                types.TextContent(type="text", text=f"Screenshot saved to: {image_path}")
+                types.TextContent(type="text", text=f"Screenshot saved to: {image_path}"),
+                types.TextContent(type="text", text=json.dumps(cursor_position, indent=2))
             ]
         
         elif name == "click_ui_element":
@@ -675,6 +809,15 @@ async def main():
             result = await ui_explorer._hot_key(
                 args.keys,
                 args.delay
+            )
+            return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+        
+        elif name == "find_elements_near_cursor":
+            args = FindNearCursorInput(**arguments)
+            result = await ui_explorer._find_elements_near_cursor(
+                max_distance=args.max_distance,
+                control_type=args.control_type,
+                limit=args.limit
             )
             return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
         
