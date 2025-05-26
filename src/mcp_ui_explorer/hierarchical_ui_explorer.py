@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 def create_parser():
     parser = argparse.ArgumentParser(description='Explore UI elements hierarchically and export to JSON')
     parser.add_argument('--output', type=str, default='', help='Output filename prefix')
-    parser.add_argument('--region', type=str, help='Region to analyze: "screen", "top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right", or custom "left,top,right,bottom" coordinates')
+    parser.add_argument('--region', type=str, help='Region to analyze: "screen", "top", "bottom", "left", "right", "center", "top-left", "top-right", "bottom-left", "bottom-right", or custom "left,top,right,bottom" coordinates')
     parser.add_argument('--depth', type=int, default=5, help='Maximum depth to analyze')
     parser.add_argument('--min-size', type=int, default=5, help='Minimum element size to include')
     parser.add_argument('--focus-window', action='store_true', help='Only analyze the foreground window')

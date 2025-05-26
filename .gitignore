@@ -37,7 +37,8 @@ venv.bak/
 *.swo
 .DS_Store
 .vs/
-
+*auto_batch
+memory/
 # Generated files
 *.log
 ui_hierarchy_*.png

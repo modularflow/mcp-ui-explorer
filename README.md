@@ -102,7 +102,7 @@ python -m mcp_ui_explorer.hierarchical_ui_explorer [options]
 
 Options:
 - `--output PREFIX`: Output filename prefix (default: "ui_hierarchy")
-- `--region REGION`: Region to analyze ("screen", "top", "bottom", "left", "right", etc. or custom "left,top,right,bottom" coordinates)
+- `--region REGION`: Region to analyze ("screen", "top", "bottom", "left", "right", "center", etc. or custom "left,top,right,bottom" coordinates)
 - `--depth DEPTH`: Maximum hierarchy depth to analyze (default: 5)
 - `--min-size SIZE`: Minimum element size to include (default: 5px)
 - `--focus-window`: Only analyze the foreground window
@@ -146,7 +146,7 @@ python -m mcp_ui_explorer.ui_hierarchy_click --json "ui_hierarchy_20240501_12345
 Use the `explore_ui` tool to get a complete hierarchy of UI elements:
 
 Parameters:
-- `region`: Screen region to analyze ("screen", "top", "bottom", "left", "right", etc.)
+- `region`: Screen region to analyze ("screen", "top", "bottom", "left", "right", "center", etc.)
 - `depth`: Maximum hierarchy depth to analyze (default: 5)
 - `min_size`: Minimum element size to include (default: 5px)
 - `focus_window`: Only analyze the foreground window (default: False)

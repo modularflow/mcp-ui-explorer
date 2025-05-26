@@ -2,6 +2,10 @@ import os
 import sys
 import logging
 import json
+import base64
+import io
+import re
+from openai import OpenAI
 from mcp import Tool
 import pyautogui
 from PIL import Image as PILImage
@@ -30,90 +34,281 @@ logger.info("Starting UI Explorer")
 PROMPT_TEMPLATE = """
 # UI Exploration Guide
 
-You can use this tool to explore and interact with UI elements on the screen. Here's how:
+🧠 **MEMORY-ENHANCED WORKFLOW: Learn & Improve Over Time**
 
-    1. **Explore the UI structure** with the `explore_ui` tool:
-    - This returns elements matching your criteria (control_type is required, defaults to "Button")
-    - You can specify regions like "screen", "top-left", etc.
-    - Filter by text content with the text parameter (case-insensitive, partial match)
-    - When filtering by control_type or text, results are automatically flattened
-    - Returns current cursor position as well
+This system now includes memory capabilities to learn from successful workflows and avoid repeating failures.
+
+## 🔍 **START EVERY CONVERSATION: Check Memory First**
+
+Before starting any UI task, search memory for similar workflows:
+
+```
+# Search for relevant past workflows
+search_memory("login workflow", "button clicking", "form filling", etc.)
+
+# Look for specific UI elements or applications  
+search_memory("Chrome browser", "settings dialog", "file menu", etc.)
+
+# Check for troubleshooting patterns
+search_memory("click failed", "verification failed", "timeout issues", etc.)
+```
+
+## 🎯 **CORE WORKFLOW: Visual AI + Memory Learning**
+
+The most effective approach combines visual AI with memory learning:
+
+    1. **FIRST: Take a screenshot** with the `screenshot_ui` tool:
+    - Captures the current state of the UI with element boundaries highlighted
+    - By default, focuses on the foreground window only (focus_only=true)  
+    - Shows only meaningful elements (min_size=20, max_depth=4)
+    - Returns the screenshot file path for AI analysis
     
     Example:
     ```
-    explore_ui(region="screen", control_type="Button")
-    explore_ui(region="top-left", min_size=10, control_type="Window", text="firefox")
-    ```
-
-    2. **Visualize the UI** with the `screenshot_ui` tool:
-    - This takes a screenshot showing detected UI elements
-    - Elements are highlighted with their boundaries
-    - Different colors can represent hierarchy levels
-    - The image is saved locally and a confirmation message is returned
-    - Returns current cursor position as well
-    
-    Example:
-    ```
-    screenshot_ui(region="screen")
-    screenshot_ui(region="bottom-right")
-    ```
-
-    3. **Find UI elements near cursor** with the `find_elements_near_cursor` tool:
-    - Finds UI elements closest to the current cursor position
-    - You can specify maximum distance from cursor and limit number of results
-    - Filter by control type with the control_type parameter
-    
-    Example:
-    ```
-    find_elements_near_cursor(max_distance=200, control_type="Button", limit=10)
-    find_elements_near_cursor(max_distance=100)
+    screenshot_ui(region="screen")  # Default: clean, focused screenshot
     ```
 
-    4. **Click on UI elements** with the `click_ui_element` tool:
-    - Specify exact X and Y coordinates to click on screen
-    - Optional wait_time parameter controls delay before clicking (default: 2.0 seconds)
+    2. **SECOND: Use AI vision to find elements** with the `ui_tars_analyze` tool:
+    - Use the UI-TARS model to identify specific UI elements in the screenshot
+    - Describe what you're looking for in natural language
+    - Returns both normalized (0-1) and absolute pixel coordinates
+    - Most reliable method for finding UI elements
     
     Example:
     ```
-    click_ui_element(x=500, y=300)
-    click_ui_element(x=750, y=400, wait_time=0.5)
-    ```
-    
-    5. **Type text** with the `keyboard_input` tool:
-    - Send text to the currently focused element
-    - Control typing speed and behavior
-    
-    Example:
-    ```
-    keyboard_input(text="Hello world", delay=0.5, press_enter=true)
-    keyboard_input(text="user@example.com", interval=0.1)
-    ```
-    
-    6. **Press keyboard keys** with the `press_key` tool:
-    - Press special keys like Enter, Tab, Escape, etc.
-    - Control timing and repetition
-    
-    Example:
-    ```
-    press_key(key="tab", presses=3)
-    press_key(key="space", delay=1.0)
-    ```
-    
-    7. **Use keyboard shortcuts** with the `hot_key` tool:
-    - Press key combinations like Ctrl+C, Alt+Tab, etc.
-    
-    Example:
-    ```
-    hot_key(keys=["ctrl", "c"])
-    hot_key(keys=["alt", "tab"], delay=0.5)
+    ui_tars_analyze(image_path="ui_hierarchy_20250524_143022.png", query="login button")
+    ui_tars_analyze(image_path="screenshot.png", query="submit button in the form")
     ```
 
-    Example workflow:
-    1. First explore the UI to find buttons: explore_ui(control_type="Button") or find specific elements: explore_ui(control_type="Window", text="firefox")
-    2. Take a screenshot to visualize specific elements: screenshot_ui()
-    3. Or find elements near the cursor: find_elements_near_cursor(max_distance=100)
-    4. Note the coordinates of elements you want to click, then click at those coordinates: click_ui_element(x=500, y=300)
-    5. Type text or use keyboard shortcuts as needed
+    3. **THIRD: Click on found elements** with the `click_ui_element` tool:
+    - Use either absolute or normalized coordinates
+    - UI-TARS provides both formats - use whichever is convenient
+    - Specify wait_time if needed (default: 2.0 seconds)
+    
+    Example:
+    ```
+    click_ui_element(x=500, y=300)  # Absolute coordinates
+    click_ui_element(x=0.5, y=0.3, normalized=true)  # Normalized coordinates (0-1)
+    ```
+
+    4. **Interact with text and keyboard** as needed:
+    - Type text: `keyboard_input(text="Hello world", press_enter=true)`
+    - Press keys: `press_key(key="tab")`  
+    - Shortcuts: `hot_key(keys=["ctrl", "c"])`
+
+    5. **VERIFY the action worked** with the `verify_ui_action` tool:
+    - Check that your action had the expected result
+    - Uses AI vision to confirm the UI state changed as expected
+    - Essential for reliable automation workflows
+    
+    Example:
+    ```
+    verify_ui_action(
+        action_description="Clicked the login button", 
+        expected_result="Login dialog should have opened",
+        verification_query="login dialog box with username and password fields"
+    )
+    ```
+
+    6. **SAVE MEMORY after each verified action**:
+    - Document what was done and whether it worked
+    - Build knowledge for future similar tasks
+    - Create workflow chains for complex sequences
+    
+    Example:
+    ```
+    # Create memory entity for the action
+    mcp_memory_create_entities([{
+        "name": "Login_Button_Click_Action_2024",
+        "entityType": "UI_Action",
+        "observations": [
+            "Action: Clicked login button at normalized coords (0.5, 0.3)",
+            "Result: SUCCESS - Login dialog opened as expected",
+            "App: Chrome browser on login page",
+            "Verification: Found 'username and password fields' in dialog",
+            "Timing: 2.0 seconds wait time worked well",
+            "Screenshot: verification_20241201_143022.png"
+        ]
+    }])
+    
+    # Link actions together in workflows
+    mcp_memory_create_relations([{
+        "from": "Website_Navigation_Workflow",
+        "to": "Login_Button_Click_Action_2024", 
+        "relationType": "INCLUDES_STEP"
+    }])
+    ```
+
+📋 **BACKUP METHODS** (use only when visual approach doesn't work):
+
+    5. **Text-based UI exploration** with the `explore_ui` tool:
+    - Returns structured data about UI elements
+    - Filter by control_type and text content
+    - Returns absolute pixel coordinates in position field
+    
+    Example:
+    ```
+    explore_ui(region="screen", control_type="Button", text="submit")
+    ```
+
+    6. **Find elements near cursor** with the `find_elements_near_cursor` tool:
+    - Finds UI elements closest to current cursor position
+    - Returns absolute pixel coordinates
+    
+    Example:
+    ```
+    find_elements_near_cursor(max_distance=100, control_type="Button")
+    ```
+
+⚙️ **COORDINATE FORMATS**:
+- UI-TARS returns: `{"normalized": {"x": 0.5, "y": 0.3}, "absolute": {"x": 960, "y": 432}}`
+- Other tools return: `{"coordinates": {"absolute": {...}, "normalized": {...}}}`
+- Click tool accepts: Both `{"x": 960, "y": 432}` and `{"x": 0.5, "y": 0.3, "normalized": true}`
+
+🎯 **MEMORY-ENHANCED WORKFLOW**:
+    0. **Search memory first**: `mcp_memory_search_nodes("similar task keywords")`
+    1. Take a screenshot: `screenshot_ui(region="screen")`  
+    2. Find element with AI: `ui_tars_analyze(image_path="screenshot.png", query="what you want")`
+    3. Click on element: `click_ui_element(x=absolute_x, y=absolute_y)`
+    4. Interact as needed: `keyboard_input(text="...")` or `press_key(...)`
+    5. Verify it worked: `verify_ui_action(action_description="...", expected_result="...", verification_query="...")`
+    6. **Save memory**: `mcp_memory_create_entities([action_memory])` + `mcp_memory_create_relations([workflow_link])`
+
+## 🧠 **MEMORY MANAGEMENT PATTERNS**
+
+### **Entity Types to Create:**
+- `UI_Action`: Individual clicks, typing, key presses with results
+- `UI_Workflow`: Complete sequences of actions (login, file-open, etc.)  
+- `UI_Element`: Specific buttons, fields, menus with locations
+- `App_Context`: Application-specific behavior patterns
+- `Troubleshooting`: Failed actions with solutions
+
+### **Memory Structure Example:**
+```
+# Workflow entity
+"Website_Login_Workflow_Chrome" (UI_Workflow)
+  ├─ INCLUDES_STEP → "Navigate_To_Login_Page" (UI_Action)
+  ├─ INCLUDES_STEP → "Click_Login_Button" (UI_Action) 
+  ├─ INCLUDES_STEP → "Enter_Username" (UI_Action)
+  └─ INCLUDES_STEP → "Enter_Password" (UI_Action)
+
+# Action entity with detailed observations
+"Click_Login_Button" (UI_Action)
+  - "Coordinates: normalized (0.5, 0.3) = absolute (960, 432)"
+  - "Verification: SUCCESS - Login dialog appeared"
+  - "Timing: 2.0s wait worked well"
+  - "Context: Chrome browser, login page loaded"
+  - "Alternative: Also found at (0.48, 0.31) on different screen size"
+```
+
+### **Search Strategies:**
+- **By task**: `mcp_memory_search_nodes("login workflow")`
+- **By app**: `mcp_memory_search_nodes("Chrome browser actions")`
+- **By element**: `mcp_memory_search_nodes("submit button clicking")`
+- **By failure**: `mcp_memory_search_nodes("verification failed solutions")`
+
+### **Learning from Failures:**
+```
+# Document failures for future reference
+mcp_memory_create_entities([{
+    "name": "Login_Button_Click_Failed_2024",
+    "entityType": "Troubleshooting", 
+    "observations": [
+        "FAILED: Click at (0.5, 0.3) missed login button",
+        "Cause: Button moved due to page resize",
+        "Solution: Used UI-TARS to find actual position (0.52, 0.28)",
+        "Lesson: Always use UI-TARS for dynamic layouts",
+        "App: Chrome browser with responsive design"
+    ]
+}])
+```
+
+ 💡 **PRO TIPS**:
+- **Always search memory first** - learn from past successes and failures
+- **Document everything** - coordinates, timing, context, results
+- **Link actions into workflows** - build reusable automation sequences  
+- **Save failures too** - they're valuable troubleshooting knowledge
+- Be specific in UI-TARS queries: "red submit button" instead of just "button"  
+- Use either absolute or normalized coordinates for clicking (both supported)
+- Normalized coordinates (0-1) work across different screen resolutions
+- **Always verify actions worked** - don't assume success without checking
+- Use backup text methods only when visual approach fails
+
+## 📋 **COMPLETE EXAMPLE: Memory-Enhanced Login Workflow**
+
+### **Step 1: Check existing knowledge**
+```
+# Search for similar workflows
+search_result = mcp_memory_search_nodes("website login Chrome browser")
+
+# If found, review past approaches and adapt
+# If not found, proceed with discovery and documentation
+```
+
+### **Step 2: Execute with memory capture**
+```
+# 1. Screenshot and find login button
+screenshot_ui(region="screen")
+login_coords = ui_tars_analyze(image_path="screenshot.png", query="login button")
+
+# 2. Click login button  
+click_result = click_ui_element(x=login_coords['normalized']['x'], y=login_coords['normalized']['y'], normalized=true)
+
+# 3. Verify it worked
+verification = verify_ui_action(
+    action_description="Clicked main login button",
+    expected_result="Login form should appear", 
+    verification_query="username and password input fields"
+)
+
+# 4. Save the action to memory
+mcp_memory_create_entities([{
+    "name": f"Login_Button_Click_{timestamp}",
+    "entityType": "UI_Action",
+    "observations": [
+        f"Action: Clicked login button at normalized ({login_coords['normalized']['x']:.3f}, {login_coords['normalized']['y']:.3f})",
+        f"Result: {'SUCCESS' if verification['verification_passed'] else 'FAILED'} - {verification['expected_result']}",
+        f"App: Chrome browser on website login page", 
+        f"Verification query: {verification['verification_query']}",
+        f"Wait time: {click_result['wait_time']}s worked well",
+        f"Screenshot: {verification['verification_screenshot']}"
+    ]
+}])
+
+# 5. Link to workflow (create workflow entity if needed)
+mcp_memory_create_relations([{
+    "from": "Website_Login_Workflow_Master",
+    "to": f"Login_Button_Click_{timestamp}",
+    "relationType": "INCLUDES_STEP"
+}])
+```
+
+### **Step 3: Build workflow knowledge**
+```
+# If this is part of a larger workflow, document the sequence
+mcp_memory_create_entities([{
+    "name": "Website_Login_Workflow_Master", 
+    "entityType": "UI_Workflow",
+    "observations": [
+        "Complete login workflow for web applications",
+        "Step 1: Navigate to login page",
+        "Step 2: Click login button (triggers login form)",
+        "Step 3: Enter username credentials", 
+        "Step 4: Enter password credentials",
+        "Step 5: Submit login form",
+        "Success rate: High with UI-TARS verification",
+        "Common issues: Dynamic layouts, slow page loads"
+    ]
+}])
+```
+
+### **Benefits of Memory Integration:**
+- 🧠 **Learning**: Each action builds knowledge for future tasks
+- 🔄 **Reusability**: Successful workflows can be reused and adapted  
+- 🐛 **Debugging**: Failed actions documented with solutions
+- ⚡ **Speed**: Skip discovery phase for known workflows
+- 🎯 **Accuracy**: Learn optimal coordinates and timing
+- 📊 **Analytics**: Track success rates and common failure patterns
         """
 
 # Define enums for input validation
@@ -123,6 +318,7 @@ class RegionType(str, Enum):
     BOTTOM = "bottom"
     LEFT = "left"
     RIGHT = "right"
+    CENTER = "center"
     TOP_LEFT = "top-left"
     TOP_RIGHT = "top-right"
     BOTTOM_LEFT = "bottom-left"
@@ -179,11 +375,15 @@ class ScreenshotUIInput(BaseModel):
     )
     highlight_levels: bool = Field(default=True, description="Use different colors for hierarchy levels")
     output_prefix: str = Field(default="ui_hierarchy", description="Prefix for output files")
+    min_size: int = Field(default=20, description="Minimum element size to include (default: 20)")
+    max_depth: int = Field(default=4, description="Maximum depth to analyze (default: 4)")
+    focus_only: bool = Field(default=True, description="Only analyze the foreground window")
 
 class ClickUIElementInput(BaseModel):
-    x: int = Field(description="X coordinate to click")
-    y: int = Field(description="Y coordinate to click")
+    x: float = Field(description="X coordinate to click (absolute pixels or normalized 0-1)")
+    y: float = Field(description="Y coordinate to click (absolute pixels or normalized 0-1)")
     wait_time: float = Field(default=2.0, description="Seconds to wait before clicking")
+    normalized: bool = Field(default=False, description="Whether coordinates are normalized (0-1) or absolute pixels")
 
 class KeyboardInputInput(BaseModel):
     text: str = Field(description="Text to type")
@@ -201,6 +401,19 @@ class HotKeyInput(BaseModel):
     keys: List[str] = Field(description="List of keys to press together (e.g., ['ctrl', 'c'] for Ctrl+C)")
     delay: float = Field(default=0.1, description="Delay before pressing keys in seconds")
 
+class UITarsInput(BaseModel):
+    image_path: str = Field(description="Path to the screenshot image to analyze")
+    query: str = Field(description="Description of what to find on the screen (e.g., 'the login button', 'the search box')")
+    api_url: str = Field(default="http://127.0.0.1:1234/v1", description="Base URL for the UI-TARS API")
+    model_name: str = Field(default="ui-tars-7b-dpo", description="Name of the UI-TARS model to use")
+
+class UIVerificationInput(BaseModel):
+    action_description: str = Field(description="Description of the action that was performed")
+    expected_result: str = Field(description="What should have happened (e.g., 'window should open', 'text should appear')")
+    verification_query: str = Field(description="What to look for in the screenshot to verify success")
+    timeout: float = Field(default=3.0, description="How long to wait for the change to occur (seconds)")
+    comparison_image: Optional[str] = Field(default=None, description="Optional: path to before image for comparison")
+
 class UIExplorer:
     def __init__(self):
         self.regions: Dict[str, Any] = {}
@@ -210,15 +423,17 @@ class UIExplorer:
         Get the current position of the mouse cursor.
         
         Returns:
-            Dictionary with current cursor coordinates
+            Dictionary with current cursor coordinates in both absolute and normalized formats
         """
         try:
             x, y = pyautogui.position()
+            screen_width, screen_height = pyautogui.size()
+            
             return {
                 "success": True,
                 "position": {
-                    "x": x,
-                    "y": y
+                    "absolute": {"x": x, "y": y},
+                    "normalized": {"x": x / screen_width, "y": y / screen_height}
                 }
             }
         except Exception as e:
@@ -346,13 +561,37 @@ class UIExplorer:
         for element in filtered_hierarchy:
             add_ids(element)
         
-        # Clean up elements to remove extra fields
+        # Clean up elements to remove extra fields and add normalized coordinates
+        screen_width, screen_height = pyautogui.size()
         simplified_hierarchy = []
         for element in filtered_hierarchy:
+            # Convert position to both absolute and normalized coordinates
+            pos = element['position']
+            if isinstance(pos, dict) and all(k in pos for k in ['left', 'top', 'right', 'bottom']):
+                left, top, right, bottom = pos['left'], pos['top'], pos['right'], pos['bottom']
+                center_x = (left + right) / 2
+                center_y = (top + bottom) / 2
+                
+                coordinates = {
+                    "absolute": {
+                        "left": int(left), "top": int(top), 
+                        "right": int(right), "bottom": int(bottom),
+                        "center_x": int(center_x), "center_y": int(center_y)
+                    },
+                    "normalized": {
+                        "left": left / screen_width, "top": top / screen_height,
+                        "right": right / screen_width, "bottom": bottom / screen_height,
+                        "center_x": center_x / screen_width, "center_y": center_y / screen_height
+                    }
+                }
+            else:
+                coordinates = {"absolute": pos, "normalized": None}
+            
             simplified = {
                 "control_type": element['control_type'],
                 "text": element['text'],
-                "position": element['position'],
+                "position": pos,  # Keep original for backward compatibility
+                "coordinates": coordinates,  # New unified format
                 "id": element['id'],
                 "properties": element['properties']['automation_id']
             }
@@ -374,6 +613,9 @@ class UIExplorer:
         region: Optional[Union[RegionType, str]] = None,
         highlight_levels: bool = True,
         output_prefix: str = "ui_hierarchy",
+        min_size: int = 20,
+        max_depth: int = 4,
+        focus_only: bool = True
     ) -> tuple[bytes, str, Dict[str, Any]]:
         """
         Take a screenshot with UI elements highlighted and return it as an image.
@@ -382,6 +624,9 @@ class UIExplorer:
             region: Region to analyze: predefined regions or custom 'left,top,right,bottom' coordinates
             highlight_levels: Use different colors for hierarchy levels (default: True)
             output_prefix: Prefix for output files (default: "ui_hierarchy")
+            min_size: Minimum element size to include (default: 20)
+            max_depth: Maximum depth to analyze (default: 4)
+            focus_only: Only analyze the foreground window (default: True)
         
         Returns:
             Tuple of (image_data, image_path, cursor_position)
@@ -413,12 +658,12 @@ class UIExplorer:
                         # Instead of returning a dict, raise an exception
                         raise ValueError(f"Error parsing region: {str(e)}")
         
-        # Analyze UI elements
+        # Analyze UI elements - more selective by default
         ui_hierarchy = analyze_ui_hierarchy(
             region=region_coords,
-            max_depth=8,
-            focus_only=False,
-            min_size=5,
+            max_depth=max_depth,
+            focus_only=focus_only,
+            min_size=min_size,
             visible_only=True
         )   
         
@@ -440,39 +685,55 @@ class UIExplorer:
 
     async def _click_ui_element(
         self,
-        x: int,
-        y: int,
-        wait_time: float
+        x: float,
+        y: float,
+        wait_time: float,
+        normalized: bool = False
     ) -> Dict[str, Any]:
         """
         Click at specific coordinates.
         
         Args:
-            x: X coordinate to click
-            y: Y coordinate to click
+            x: X coordinate to click (absolute pixels or normalized 0-1)
+            y: Y coordinate to click (absolute pixels or normalized 0-1)
             wait_time: Seconds to wait before clicking (default: 2)
+            normalized: Whether coordinates are normalized (0-1) or absolute pixels
         
         Returns:
             Result of the click operation
         """
+        # Convert normalized coordinates to absolute if needed
+        if normalized:
+            screen_width, screen_height = pyautogui.size()
+            abs_x = int(x * screen_width)
+            abs_y = int(y * screen_height)
+            coord_type = "normalized"
+            input_coords = f"({x:.3f}, {y:.3f})"
+        else:
+            abs_x = int(x)
+            abs_y = int(y)
+            coord_type = "absolute"
+            input_coords = f"({x}, {y})"
+        
         # Wait before clicking
         import time
         time.sleep(wait_time)
         
         try:
-            pyautogui.click(x, y)
+            pyautogui.click(abs_x, abs_y)
             return {
                 "success": True,
-                "message": f"Clicked at coordinates ({x}, {y})",
-                "position": {
-                    "x": x,
-                    "y": y
+                "message": f"Clicked at {coord_type} coordinates {input_coords} -> absolute ({abs_x}, {abs_y})",
+                "coordinates": {
+                    "input": {"x": x, "y": y, "type": coord_type},
+                    "absolute": {"x": abs_x, "y": abs_y},
+                    "normalized": {"x": abs_x / pyautogui.size()[0], "y": abs_y / pyautogui.size()[1]}
                 }
             }
         except Exception as e:
             return {
                 "success": False,
-                "error": f"Failed to click at coordinates ({x}, {y}): {str(e)}"
+                "error": f"Failed to click at {coord_type} coordinates {input_coords}: {str(e)}"
             }
 
     async def _keyboard_input(
@@ -611,7 +872,7 @@ class UIExplorer:
         if not cursor_pos["success"]:
             return cursor_pos
             
-        cursor_x, cursor_y = cursor_pos["position"]["x"], cursor_pos["position"]["y"]
+        cursor_x, cursor_y = cursor_pos["position"]["absolute"]["x"], cursor_pos["position"]["absolute"]["y"]
         
         # Get all UI elements
         screen_width, screen_height = pyautogui.size()
@@ -636,19 +897,48 @@ class UIExplorer:
                 return
                 
             # Calculate center point of element
-            x1, y1, x2, y2 = element['position']
-            element_center_x = (x1 + x2) / 2
-            element_center_y = (y1 + y2) / 2
+            pos = element['position']
+            if isinstance(pos, dict) and all(k in pos for k in ['left', 'top', 'right', 'bottom']):
+                element_center_x = (pos['left'] + pos['right']) / 2
+                element_center_y = (pos['top'] + pos['bottom']) / 2
+            else:
+                # Fallback for unexpected format
+                return
             
             # Calculate Euclidean distance
             distance = ((element_center_x - cursor_x) ** 2 + (element_center_y - cursor_y) ** 2) ** 0.5
             
             # Add to list if within max_distance
             if distance <= max_distance:
+                # Add normalized coordinates for consistency
+                screen_width, screen_height = pyautogui.size()
+                pos = element['position']
+                
+                if isinstance(pos, dict) and all(k in pos for k in ['left', 'top', 'right', 'bottom']):
+                    left, top, right, bottom = pos['left'], pos['top'], pos['right'], pos['bottom']
+                    center_x = (left + right) / 2
+                    center_y = (top + bottom) / 2
+                    
+                    coordinates = {
+                        "absolute": {
+                            "left": int(left), "top": int(top), 
+                            "right": int(right), "bottom": int(bottom),
+                            "center_x": int(center_x), "center_y": int(center_y)
+                        },
+                        "normalized": {
+                            "left": left / screen_width, "top": top / screen_height,
+                            "right": right / screen_width, "bottom": bottom / screen_height,
+                            "center_x": center_x / screen_width, "center_y": center_y / screen_height
+                        }
+                    }
+                else:
+                    coordinates = {"absolute": pos, "normalized": None}
+                
                 element_copy = {
                     "control_type": element['control_type'],
                     "text": element['text'],
-                    "position": element['position'],
+                    "position": pos,  # Keep original for backward compatibility
+                    "coordinates": coordinates,  # New unified format
                     "distance": round(distance, 2),
                     "properties": element['properties']['automation_id'] if 'properties' in element and 'automation_id' in element['properties'] else ""
                 }
@@ -674,6 +964,244 @@ class UIExplorer:
             "total_found": len(elements_with_distance),
             "showing": min(len(elements_with_distance), limit)
         }
+
+    async def _ui_tars_analyze(
+        self,
+        image_path: str,
+        query: str,
+        api_url: str = "http://127.0.0.1:1234/v1",
+        model_name: str = "ui-tars-7b-dpo"
+    ) -> Dict[str, Any]:
+        """
+        Use UI-TARS model to identify coordinates of UI elements on screen.
+        
+        Args:
+            image_path: Path to the screenshot image to analyze
+            query: Description of what to find on the screen
+            api_url: Base URL for the UI-TARS API (default: http://127.0.0.1:1234/v1)
+            model_name: Name of the UI-TARS model to use (default: ui-tars-7b-dpo)
+        
+        Returns:
+            Dictionary containing the analysis result with normalized coordinates
+        """
+        try:
+            # Check if image file exists
+            if not os.path.exists(image_path):
+                return {
+                    "success": False,
+                    "error": f"Image file not found: {image_path}"
+                }
+            
+            # Load and encode the image
+            with open(image_path, 'rb') as image_file:
+                image_data = image_file.read()
+                
+            # Convert to base64
+            image_base64 = base64.b64encode(image_data).decode('utf-8')
+            
+            # Get screen dimensions for coordinate conversion
+            screen_width, screen_height = pyautogui.size()
+            
+            # Initialize OpenAI client
+            client = OpenAI(
+                base_url=api_url,
+                api_key="dummy"  # UI-TARS typically doesn't require a real API key
+            )
+            
+            # Prepare the prompt for UI-TARS
+            system_prompt = """You are UI-TARS, a specialized model for identifying UI elements in screenshots. 
+When asked to find an element, respond with the coordinates of the center of the target element.
+You can use any of these formats:
+- <click>x,y</click> for normalized coordinates (0-1)
+- <|box_start|>(x,y)<|box_end|> for absolute pixel coordinates
+- (x,y) for coordinates
+If you cannot find the element, respond with "Element not found"."""
+            
+            user_prompt = f"Find the {query} in this screenshot and provide its normalized coordinates."
+            
+            # Make the API call
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {
+                        "role": "user", 
+                        "content": [
+                            {"type": "text", "text": user_prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{image_base64}"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=150,
+                temperature=0.1
+            )
+            
+            # Parse the response
+            response_text = response.choices[0].message.content.strip()
+            
+            # Extract coordinates from response - handle multiple formats
+            # Format 1: <click>x,y</click>
+            coordinate_pattern1 = r'<click>([0-9.]+),([0-9.]+)</click>'
+            # Format 2: <|box_start|>(x,y)<|box_end|>
+            coordinate_pattern2 = r'<\|box_start\|>\(([0-9.]+),([0-9.]+)\)<\|box_end\|>'
+            # Format 3: Just coordinates in parentheses (x,y)
+            coordinate_pattern3 = r'\(([0-9.]+),([0-9.]+)\)'
+            
+            match = re.search(coordinate_pattern1, response_text)
+            if not match:
+                match = re.search(coordinate_pattern2, response_text)
+            if not match:
+                match = re.search(coordinate_pattern3, response_text)
+            
+            if match:
+                # Parse coordinates
+                x, y = float(match.group(1)), float(match.group(2))
+                
+                # Determine if coordinates are normalized or absolute
+                # If both values are <= 1, assume normalized; otherwise assume absolute
+                if x <= 1.0 and y <= 1.0:
+                    # Normalized coordinates
+                    norm_x, norm_y = x, y
+                    abs_x = int(norm_x * screen_width)
+                    abs_y = int(norm_y * screen_height)
+                else:
+                    # Absolute coordinates
+                    abs_x, abs_y = int(x), int(y)
+                    norm_x = abs_x / screen_width
+                    norm_y = abs_y / screen_height
+                
+                return {
+                    "success": True,
+                    "found": True,
+                    "query": query,
+                    "response": response_text,
+                    "coordinates": {
+                        "normalized": {"x": norm_x, "y": norm_y},
+                        "absolute": {"x": abs_x, "y": abs_y}
+                    },
+                    "screen_dimensions": {"width": screen_width, "height": screen_height}
+                }
+            else:
+                return {
+                    "success": True,
+                    "found": False,
+                    "query": query,
+                    "response": response_text,
+                    "error": "Could not parse coordinates from response or element not found"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Failed to analyze image with UI-TARS: {str(e)}"
+            }
+
+    async def _verify_ui_action(
+        self,
+        action_description: str,
+        expected_result: str,
+        verification_query: str,
+        timeout: float = 3.0,
+        comparison_image: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Verify that a UI action had the expected result.
+        
+        Args:
+            action_description: Description of what action was performed
+            expected_result: What should have happened
+            verification_query: What to look for to verify success
+            timeout: How long to wait for changes (seconds)
+            comparison_image: Optional before image for comparison
+        
+        Returns:
+            Verification result with success status and details
+        """
+        import time
+        
+        try:
+            # Wait for the UI to settle after the action
+            time.sleep(timeout)
+            
+            # Take a screenshot to verify the current state
+            image_data, image_path, cursor_pos = await self._screenshot_ui(
+                output_prefix="verification"
+            )
+            
+            # Use UI-TARS to check if the expected element/state is present
+            verification_result = await self._ui_tars_analyze(
+                image_path=image_path,
+                query=verification_query
+            )
+            
+            # Analyze the verification result
+            verification_success = False
+            verification_details = {}
+            
+            if verification_result['success']:
+                if verification_result.get('found'):
+                    verification_success = True
+                    verification_details = {
+                        "found_element": True,
+                        "coordinates": verification_result['coordinates'],
+                        "ai_response": verification_result['response']
+                    }
+                else:
+                    verification_details = {
+                        "found_element": False,
+                        "ai_response": verification_result['response'],
+                        "search_query": verification_query
+                    }
+            else:
+                verification_details = {
+                    "ai_error": verification_result.get('error', 'Unknown error'),
+                    "search_query": verification_query
+                }
+            
+            # Optional: Compare with before image if provided
+            comparison_details = None
+            if comparison_image and os.path.exists(comparison_image):
+                try:
+                    # Basic file comparison (could be enhanced with image diff)
+                    with open(comparison_image, 'rb') as f1, open(image_path, 'rb') as f2:
+                        before_size = len(f1.read())
+                        after_size = len(f2.read())
+                        
+                    comparison_details = {
+                        "before_image": comparison_image,
+                        "after_image": image_path,
+                        "file_size_changed": before_size != after_size,
+                        "before_size": before_size,
+                        "after_size": after_size
+                    }
+                except Exception as e:
+                    comparison_details = {"comparison_error": str(e)}
+            
+            return {
+                "success": True,
+                "verification_passed": verification_success,
+                "action_description": action_description,
+                "expected_result": expected_result,
+                "verification_query": verification_query,
+                "verification_details": verification_details,
+                "comparison_details": comparison_details,
+                "verification_screenshot": image_path,
+                "waited_seconds": timeout,
+                "timestamp": time.time()
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Verification failed: {str(e)}",
+                "action_description": action_description,
+                "expected_result": expected_result
+            }
 
 async def main():
     ui_explorer = UIExplorer()
@@ -745,6 +1273,16 @@ async def main():
                 name="find_elements_near_cursor",
                 description="Find UI elements closest to the current cursor position.",
                 inputSchema=FindNearCursorInput.model_json_schema(),
+            ),
+            Tool(
+                name="ui_tars_analyze",
+                description="Use UI-TARS model to identify coordinates of UI elements on screen from a screenshot.",
+                inputSchema=UITarsInput.model_json_schema(),
+            ),
+            Tool(
+                name="verify_ui_action",
+                description="Verify the result of a UI action.",
+                inputSchema=UIVerificationInput.model_json_schema(),
             )
         ]
 
@@ -769,6 +1307,9 @@ async def main():
                 args.region,
                 args.highlight_levels,
                 args.output_prefix,
+                args.min_size,
+                args.max_depth,
+                args.focus_only
             )
             return [
                 types.TextContent(type="text", text=f"Screenshot saved to: {image_path}"),
@@ -780,7 +1321,8 @@ async def main():
             result = await ui_explorer._click_ui_element(
                 x=args.x,
                 y=args.y,
-                wait_time=args.wait_time
+                wait_time=args.wait_time,
+                normalized=args.normalized
             )
             return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
         
@@ -818,6 +1360,27 @@ async def main():
                 max_distance=args.max_distance,
                 control_type=args.control_type,
                 limit=args.limit
+            )
+            return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+        
+        elif name == "ui_tars_analyze":
+            args = UITarsInput(**arguments)
+            result = await ui_explorer._ui_tars_analyze(
+                image_path=args.image_path,
+                query=args.query,
+                api_url=args.api_url,
+                model_name=args.model_name
+            )
+            return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+        
+        elif name == "verify_ui_action":
+            args = UIVerificationInput(**arguments)
+            result = await ui_explorer._verify_ui_action(
+                args.action_description,
+                args.expected_result,
+                args.verification_query,
+                args.timeout,
+                args.comparison_image
             )
             return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
         
