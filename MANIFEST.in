@@ -1,5 +1,3 @@
 include README.md
 include LICENSE
-include requirements.txt
-include hierarchical_ui_explorer.py
-include ui_hierarchy_click.py 
+include requirements.txt 

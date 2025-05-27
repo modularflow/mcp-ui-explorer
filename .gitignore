@@ -83,3 +83,23 @@ dmypy.json
 *.db
 *.ddb
 .roo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+benchmark.json
+.benchmarks/
+
+# Test artifacts
+test_*.png
+test_*.jpg
+test_*.json
+*_test_*
+pytest.log
+
+# Security scan results
+bandit-report.json
+safety-report.json
+trivy-results.sarif

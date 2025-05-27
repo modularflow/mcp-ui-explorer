@@ -1,0 +1,1 @@
+"""Performance tests for MCP UI Explorer.""" 

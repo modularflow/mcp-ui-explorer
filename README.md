@@ -88,56 +88,9 @@ If you've installed the package (either globally or in a virtual environment), y
 uvx mcp-ui-explorer
 ```
 
-## Command Line Tools
+## MCP Tools
 
-Besides the MCP server functionality, UI Explorer also provides standalone command line tools for exploring UI elements and automating interactions.
-
-### UI Hierarchy Explorer
-
-Explore UI elements on your screen and export them to JSON/XML files with visualization:
-
-```bash
-python -m mcp_ui_explorer.hierarchical_ui_explorer [options]
-```
-
-Options:
-- `--output PREFIX`: Output filename prefix (default: "ui_hierarchy")
-- `--region REGION`: Region to analyze ("screen", "top", "bottom", "left", "right", "center", etc. or custom "left,top,right,bottom" coordinates)
-- `--depth DEPTH`: Maximum hierarchy depth to analyze (default: 5)
-- `--min-size SIZE`: Minimum element size to include (default: 5px)
-- `--focus-window`: Only analyze the foreground window
-- `--highlight-levels`: Use different colors for hierarchy levels
-- `--format {json,xml,both}`: Output format (default: json)
-- `--visible-only`: Only include elements visible on screen
-- `--control-type TYPE`: Only include elements of this control type (default: Button)
-- `--text TEXT`: Only include elements containing this text
-
-Example:
-```bash
-python -m mcp_ui_explorer.hierarchical_ui_explorer --region "screen" --control-type "Button" --highlight-levels
-```
-
-### UI Element Clicker
-
-Click on UI elements from a previously exported JSON hierarchy:
-
-```bash
-python -m mcp_ui_explorer.ui_hierarchy_click [options]
-```
-
-Options:
-- `--json FILE`: Path to JSON hierarchy file
-- `--type TYPE`: Control type to search for (default: Button)
-- `--text TEXT`: Text content to search for
-- `--wait SECONDS`: Seconds to wait before clicking (default: 2)
-- `--path PATH`: Path to element (e.g., 0.children.3.children.2)
-
-Example:
-```bash
-python -m mcp_ui_explorer.ui_hierarchy_click --json "ui_hierarchy_20240501_123456.json" --type "Button" --text "Submit"
-```
-
-**Note**: When you run the UI Hierarchy Explorer, it automatically generates a helper script for clicking elements from the exported hierarchy. This script is named `{output_prefix}_click.py` and can be used directly.
+The UI Explorer provides several MCP tools for UI automation and exploration. These tools are available when using the MCP server interface.
 
 ## Usage Guide
 
