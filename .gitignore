@@ -44,6 +44,7 @@ memory/
 ui_hierarchy_*.png
 ui_hierarchy_*.json
 ui_hierarchy_*.xml
+macros/*
 
 # System files
 .DS_Store

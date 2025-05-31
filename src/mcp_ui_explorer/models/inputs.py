@@ -3,7 +3,7 @@
 from typing import Optional, List, Union, Literal
 from pydantic import BaseModel, Field
 
-from .enums import RegionType, ControlType
+from .enums import RegionType, ControlType, MacroState
 
 
 class ExploreUIInput(BaseModel):
@@ -144,4 +144,46 @@ class DocumentStepInput(BaseModel):
 class GetStepStatusInput(BaseModel):
     """Input model for get_step_status tool."""
     
-    show_all_steps: bool = Field(default=False, description="Show all planned steps, not just current") 
+    show_all_steps: bool = Field(default=False, description="Show all planned steps, not just current")
+
+
+class StartMacroRecordingInput(BaseModel):
+    """Input model for start_macro_recording tool."""
+    
+    macro_name: str = Field(description="Name for the macro being recorded")
+    description: Optional[str] = Field(default=None, description="Optional description of what the macro does")
+    capture_ui_context: bool = Field(default=True, description="Whether to capture UI element information during recording")
+    capture_screenshots: bool = Field(default=True, description="Whether to take screenshots at key moments")
+    mouse_move_threshold: float = Field(default=50.0, description="Minimum distance in pixels to record mouse movements")
+    keyboard_commit_events: List[str] = Field(
+        default=["enter", "tab", "escape"], 
+        description="Keys that trigger text commit events (e.g., when user finishes typing in a field)"
+    )
+
+
+class StopMacroRecordingInput(BaseModel):
+    """Input model for stop_macro_recording tool."""
+    
+    save_macro: bool = Field(default=True, description="Whether to save the recorded macro")
+    output_format: Literal["json", "python", "both"] = Field(default="both", description="Format to save the macro in")
+
+
+class PauseMacroRecordingInput(BaseModel):
+    """Input model for pause_macro_recording tool."""
+    
+    pause: bool = Field(default=True, description="True to pause, False to resume recording")
+
+
+class GetMacroStatusInput(BaseModel):
+    """Input model for get_macro_status tool."""
+    
+    include_events: bool = Field(default=False, description="Whether to include the recorded events in the response")
+
+
+class PlayMacroInput(BaseModel):
+    """Input model for play_macro tool."""
+    
+    macro_path: str = Field(description="Path to the macro file to play")
+    speed_multiplier: float = Field(default=1.0, description="Speed multiplier for playback (1.0 = normal speed)")
+    verify_ui_context: bool = Field(default=True, description="Whether to verify UI context matches before executing actions")
+    stop_on_verification_failure: bool = Field(default=True, description="Whether to stop playback if UI verification fails") 

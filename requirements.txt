@@ -3,3 +3,4 @@ pywinauto
 pillow
 pydantic>=2.0.0
 mcp>=1.6.0
+pynput

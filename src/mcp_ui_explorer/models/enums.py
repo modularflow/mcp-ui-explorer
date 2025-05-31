@@ -43,4 +43,28 @@ class ControlType(str, Enum):
     DOCUMENT = "Document"
     STATUSBAR = "StatusBar"
     IMAGE = "Image"
-    HYPERLINK = "Hyperlink" 
+    HYPERLINK = "Hyperlink"
+
+
+class MacroState(str, Enum):
+    """Macro recording states."""
+    
+    IDLE = "idle"
+    RECORDING = "recording"
+    PAUSED = "paused"
+    STOPPED = "stopped"
+
+
+class MacroEventType(str, Enum):
+    """Types of events that can be recorded in a macro."""
+    
+    MOUSE_CLICK = "mouse_click"
+    MOUSE_MOVE = "mouse_move"
+    MOUSE_SCROLL = "mouse_scroll"
+    MOUSE_DRAG = "mouse_drag"
+    KEYBOARD_TYPE = "keyboard_type"
+    KEYBOARD_KEY = "keyboard_key"
+    KEYBOARD_HOTKEY = "keyboard_hotkey"
+    UI_CHANGE = "ui_change"
+    SCREENSHOT = "screenshot"
+    WAIT = "wait" 

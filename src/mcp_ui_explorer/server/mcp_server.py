@@ -373,6 +373,31 @@ def create_server() -> Server:
                 name="get_step_status",
                 description="Get current step status and progress information.",
                 inputSchema=GetStepStatusInput.model_json_schema(),
+            ),
+            Tool(
+                name="start_macro_recording",
+                description="Start recording a macro that captures user interactions with UI context information.",
+                inputSchema=StartMacroRecordingInput.model_json_schema(),
+            ),
+            Tool(
+                name="stop_macro_recording",
+                description="Stop macro recording and save the recorded interactions to file(s).",
+                inputSchema=StopMacroRecordingInput.model_json_schema(),
+            ),
+            Tool(
+                name="pause_macro_recording",
+                description="Pause or resume macro recording without stopping it completely.",
+                inputSchema=PauseMacroRecordingInput.model_json_schema(),
+            ),
+            Tool(
+                name="get_macro_status",
+                description="Get the current status of macro recording including recorded events.",
+                inputSchema=GetMacroStatusInput.model_json_schema(),
+            ),
+            Tool(
+                name="play_macro",
+                description="Play back a recorded macro file with optional speed control and UI verification.",
+                inputSchema=PlayMacroInput.model_json_schema(),
             )
         ]
 
@@ -496,6 +521,50 @@ def create_server() -> Server:
                 args = GetStepStatusInput(**arguments)
                 result = await ui_explorer.get_step_status(
                     show_all_steps=args.show_all_steps
+                )
+                return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+            
+            elif name == "start_macro_recording":
+                args = StartMacroRecordingInput(**arguments)
+                result = await ui_explorer.start_macro_recording(
+                    macro_name=args.macro_name,
+                    description=args.description,
+                    capture_ui_context=args.capture_ui_context,
+                    capture_screenshots=args.capture_screenshots,
+                    mouse_move_threshold=args.mouse_move_threshold,
+                    keyboard_commit_events=args.keyboard_commit_events
+                )
+                return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+            
+            elif name == "stop_macro_recording":
+                args = StopMacroRecordingInput(**arguments)
+                result = await ui_explorer.stop_macro_recording(
+                    save_macro=args.save_macro,
+                    output_format=args.output_format
+                )
+                return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+            
+            elif name == "pause_macro_recording":
+                args = PauseMacroRecordingInput(**arguments)
+                result = await ui_explorer.pause_macro_recording(
+                    pause=args.pause
+                )
+                return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+            
+            elif name == "get_macro_status":
+                args = GetMacroStatusInput(**arguments)
+                result = await ui_explorer.get_macro_status(
+                    include_events=args.include_events
+                )
+                return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+            
+            elif name == "play_macro":
+                args = PlayMacroInput(**arguments)
+                result = await ui_explorer.play_macro(
+                    macro_path=args.macro_path,
+                    speed_multiplier=args.speed_multiplier,
+                    verify_ui_context=args.verify_ui_context,
+                    stop_on_verification_failure=args.stop_on_verification_failure
                 )
                 return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
             

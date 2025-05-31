@@ -397,6 +397,111 @@ class UIExplorer:
             result = {"success": False, "error": str(e)}
             return self._track_and_log("find_elements_near_cursor", locals(), result)
     
+    # Macro recording methods
+    
+    async def start_macro_recording(
+        self,
+        macro_name: str,
+        description: Optional[str] = None,
+        capture_ui_context: bool = True,
+        capture_screenshots: bool = True,
+        mouse_move_threshold: float = 50.0,
+        keyboard_commit_events: List[str] = None
+    ) -> Dict[str, Any]:
+        """Start recording a new macro."""
+        result = await self.ui_actions.start_macro_recording(
+            macro_name=macro_name,
+            description=description,
+            capture_ui_context=capture_ui_context,
+            capture_screenshots=capture_screenshots,
+            mouse_move_threshold=mouse_move_threshold,
+            keyboard_commit_events=keyboard_commit_events
+        )
+        
+        # Track and add metadata
+        result = self._track_and_log("start_macro_recording", locals(), result)
+        
+        # Check for auto-summary
+        auto_summary = await self._check_auto_summary()
+        if auto_summary:
+            result["auto_summary_created"] = auto_summary
+        
+        return result
+    
+    async def stop_macro_recording(
+        self,
+        save_macro: bool = True,
+        output_format: str = "both"
+    ) -> Dict[str, Any]:
+        """Stop recording and optionally save the macro."""
+        result = await self.ui_actions.stop_macro_recording(
+            save_macro=save_macro,
+            output_format=output_format
+        )
+        
+        # Track and add metadata
+        result = self._track_and_log("stop_macro_recording", locals(), result)
+        
+        # Check for auto-summary
+        auto_summary = await self._check_auto_summary()
+        if auto_summary:
+            result["auto_summary_created"] = auto_summary
+        
+        return result
+    
+    async def pause_macro_recording(self, pause: bool = True) -> Dict[str, Any]:
+        """Pause or resume macro recording."""
+        result = await self.ui_actions.pause_macro_recording(pause=pause)
+        
+        # Track and add metadata
+        result = self._track_and_log("pause_macro_recording", locals(), result)
+        
+        # Check for auto-summary
+        auto_summary = await self._check_auto_summary()
+        if auto_summary:
+            result["auto_summary_created"] = auto_summary
+        
+        return result
+    
+    async def get_macro_status(self, include_events: bool = False) -> Dict[str, Any]:
+        """Get current macro recording status."""
+        result = await self.ui_actions.get_macro_status(include_events=include_events)
+        
+        # Track and add metadata
+        result = self._track_and_log("get_macro_status", locals(), result)
+        
+        # Check for auto-summary
+        auto_summary = await self._check_auto_summary()
+        if auto_summary:
+            result["auto_summary_created"] = auto_summary
+        
+        return result
+    
+    async def play_macro(
+        self,
+        macro_path: str,
+        speed_multiplier: float = 1.0,
+        verify_ui_context: bool = True,
+        stop_on_verification_failure: bool = True
+    ) -> Dict[str, Any]:
+        """Play a recorded macro."""
+        result = await self.ui_actions.play_macro(
+            macro_path=macro_path,
+            speed_multiplier=speed_multiplier,
+            verify_ui_context=verify_ui_context,
+            stop_on_verification_failure=stop_on_verification_failure
+        )
+        
+        # Track and add metadata
+        result = self._track_and_log("play_macro", locals(), result)
+        
+        # Check for auto-summary
+        auto_summary = await self._check_auto_summary()
+        if auto_summary:
+            result["auto_summary_created"] = auto_summary
+        
+        return result
+    
     # Memory and tracking methods
     
     async def create_memory_summary(self, force_summary: bool = False) -> Dict[str, Any]:

@@ -15,6 +15,8 @@ from ..hierarchical_ui_explorer import (
 )
 from ..services.ui_tars import UITarsService
 from ..services.verification import VerificationService
+from ..services.macro_recorder import MacroRecorder
+from ..services.macro_player import MacroPlayer
 
 
 class UIActions:
@@ -25,6 +27,15 @@ class UIActions:
         self.logger = get_logger(__name__)
         self.ui_tars_service = ui_tars_service
         self.verification_service = verification_service
+        
+        # Initialize macro recorder with screenshot function
+        self.macro_recorder = MacroRecorder(screenshot_function=self.screenshot_ui)
+        
+        # Initialize macro player with screenshot function and UI-TARS service
+        self.macro_player = MacroPlayer(
+            screenshot_function=self.screenshot_ui,
+            ui_tars_service=self.ui_tars_service
+        )
     
     async def get_cursor_position(self) -> Dict[str, Any]:
         """Get the current position of the mouse cursor."""
@@ -518,4 +529,125 @@ class UIActions:
                 "success": False,
                 "error": f"Failed to press hotkey: {str(e)}",
                 "auto_verification": {"enabled": auto_verify, "verification_passed": False}
+            }
+    
+    # Macro recording methods
+    
+    async def start_macro_recording(
+        self,
+        macro_name: str,
+        description: Optional[str] = None,
+        capture_ui_context: bool = True,
+        capture_screenshots: bool = True,
+        mouse_move_threshold: float = 50.0,
+        keyboard_commit_events: List[str] = None
+    ) -> Dict[str, Any]:
+        """Start recording a new macro."""
+        try:
+            result = self.macro_recorder.start_recording(
+                macro_name=macro_name,
+                description=description,
+                capture_ui_context=capture_ui_context,
+                capture_screenshots=capture_screenshots,
+                mouse_move_threshold=mouse_move_threshold,
+                keyboard_commit_events=keyboard_commit_events
+            )
+            
+            if result["success"]:
+                self.logger.info(f"Started macro recording: {macro_name}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Failed to start macro recording: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to start macro recording: {str(e)}"
+            }
+    
+    async def stop_macro_recording(
+        self,
+        save_macro: bool = True,
+        output_format: str = "both"
+    ) -> Dict[str, Any]:
+        """Stop recording and optionally save the macro."""
+        try:
+            result = self.macro_recorder.stop_recording(
+                save_macro=save_macro,
+                output_format=output_format
+            )
+            
+            if result["success"]:
+                self.logger.info(f"Stopped macro recording: {result.get('macro_name', 'Unknown')}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Failed to stop macro recording: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to stop macro recording: {str(e)}"
+            }
+    
+    async def pause_macro_recording(self, pause: bool = True) -> Dict[str, Any]:
+        """Pause or resume macro recording."""
+        try:
+            result = self.macro_recorder.pause_recording(pause=pause)
+            
+            action = "paused" if pause else "resumed"
+            if result["success"]:
+                self.logger.info(f"Macro recording {action}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Failed to pause/resume macro recording: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to pause/resume macro recording: {str(e)}"
+            }
+    
+    async def get_macro_status(self, include_events: bool = False) -> Dict[str, Any]:
+        """Get current macro recording status."""
+        try:
+            status = self.macro_recorder.get_status(include_events=include_events)
+            
+            return {
+                "success": True,
+                **status
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get macro status: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to get macro status: {str(e)}"
+            }
+
+    async def play_macro(
+        self,
+        macro_path: str,
+        speed_multiplier: float = 1.0,
+        verify_ui_context: bool = True,
+        stop_on_verification_failure: bool = True
+    ) -> Dict[str, Any]:
+        """Play a recorded macro."""
+        try:
+            result = await self.macro_player.play_macro(
+                macro_path=macro_path,
+                speed_multiplier=speed_multiplier,
+                verify_ui_context=verify_ui_context,
+                stop_on_verification_failure=stop_on_verification_failure
+            )
+            
+            if result["success"]:
+                self.logger.info(f"Played macro from: {macro_path}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Failed to play macro: {str(e)}")
+            return {
+                "success": False,
+                "error": f"Failed to play macro: {str(e)}"
             } 

@@ -8,6 +8,40 @@ An MCP server that provides tools for exploring and interacting with UI elements
 - Screenshot UI with highlights: Visualize UI elements with boundaries and hierarchy
 - Control mouse clicks: Click on UI elements based on coordinates
 - Explore specific regions: Focus on parts of the screen like top-left, center, etc.
+- **🎬 Macro Recording**: Record and playback UI workflows independently or through MCP
+
+## 🚀 Quick Start: Standalone Macro Recording
+
+**New!** You can now record UI workflows without running the MCP server:
+
+```bash
+# Record a workflow
+python record_macro.py --name "Login Workflow"
+
+# Play it back
+python play_macro.py --file "macros/Login Workflow.json"
+```
+
+**Windows users can use the batch files:**
+```cmd
+record_macro.bat "My Workflow"
+play_macro.bat "macros/My Workflow.json"
+```
+
+👉 **See [QUICK_START.md](QUICK_START.md) for a 2-minute tutorial**
+👉 **See [MACRO_TOOLS.md](MACRO_TOOLS.md) for complete documentation**
+
+### What Gets Recorded?
+- ✅ Mouse clicks with exact coordinates
+- ✅ Keyboard input with smart text buffering  
+- ✅ UI context for reliable playback
+- ✅ Screenshots for verification
+- ✅ Timing information for natural replay
+
+### Recording Controls
+- **F9**: Start/Stop recording
+- **F10**: Pause/Resume
+- **ESC**: Emergency stop
 
 ## Installation Options
 

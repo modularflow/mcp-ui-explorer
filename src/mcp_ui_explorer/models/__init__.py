@@ -1,6 +1,6 @@
 """Models package for MCP UI Explorer."""
 
-from .enums import RegionType, ControlType
+from .enums import RegionType, ControlType, MacroState, MacroEventType
 from .inputs import (
     ExploreUIInput,
     FindNearCursorInput,
@@ -14,11 +14,18 @@ from .inputs import (
     CreateMemorySummaryInput,
     DocumentStepInput,
     GetStepStatusInput,
+    StartMacroRecordingInput,
+    StopMacroRecordingInput,
+    PauseMacroRecordingInput,
+    GetMacroStatusInput,
+    PlayMacroInput,
 )
 
 __all__ = [
     "RegionType",
     "ControlType",
+    "MacroState",
+    "MacroEventType",
     "ExploreUIInput",
     "FindNearCursorInput",
     "ScreenshotUIInput",
@@ -31,4 +38,9 @@ __all__ = [
     "CreateMemorySummaryInput",
     "DocumentStepInput",
     "GetStepStatusInput",
+    "StartMacroRecordingInput",
+    "StopMacroRecordingInput",
+    "PauseMacroRecordingInput",
+    "GetMacroStatusInput",
+    "PlayMacroInput",
 ] 

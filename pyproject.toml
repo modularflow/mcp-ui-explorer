@@ -24,7 +24,8 @@ dependencies = [
     "pillow",
     "pydantic>=2.0.0",
     "mcp>=1.6.0",
-    "openai>=1.82.0"
+    "openai>=1.82.0",
+    "pynput"
 ]
 
 [project.optional-dependencies]
@@ -96,7 +97,7 @@ profile = "black"
 multi_line_output = 3
 line_length = 88
 known_first_party = ["mcp_ui_explorer"]
-known_third_party = ["pytest", "pydantic", "pyautogui", "pywinauto", "pillow", "openai", "mcp"]
+known_third_party = ["pytest", "pydantic", "pyautogui", "pywinauto", "pillow", "openai", "mcp", "pynput"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -119,7 +120,8 @@ module = [
     "pyautogui.*",
     "pywinauto.*",
     "PIL.*",
-    "mcp.*"
+    "mcp.*",
+    "pynput.*"
 ]
 ignore_missing_imports = true
 
