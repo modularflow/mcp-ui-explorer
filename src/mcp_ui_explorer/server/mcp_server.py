@@ -39,37 +39,56 @@ search_memory("Chrome browser", "settings dialog", "file menu", etc.)
 search_memory("click failed", "verification failed", "timeout issues", etc.)
 ```
 
-## 🎯 **CORE WORKFLOW: Visual AI + Memory Learning**
+## 🎯 **CORE WORKFLOW: Accessibility-First + Visual AI + Memory Learning**
 
-The most effective approach combines visual AI with memory learning:
+The most effective approach uses accessibility APIs first, with visual AI and coordinate clicking as fallback:
 
-    1. **FIRST: Take a screenshot** with the `screenshot_ui` tool:
-    - Captures the current state of the UI with element boundaries highlighted
-    - By default, focuses on the foreground window only (focus_only=true)  
-    - Shows only meaningful elements (min_size=20, max_depth=4)
-    - Returns the screenshot file path for AI analysis
+    1. **FIRST: Find and click using accessibility** with the `click_ui_element_by_accessibility` tool:
+    - Most reliable method for Windows applications
+    - Finds elements by control type, text, automation ID, or class name
+    - Works even if UI layout changes or screen resolution differs
+    - Automatically falls back to coordinates if accessibility method fails
     
     Example:
     ```
-    screenshot_ui(region="screen")  # Default: clean, focused screenshot
+    click_ui_element_by_accessibility(control_type="Button", text="login")
+    click_ui_element_by_accessibility(text="submit")
+    click_ui_element_by_accessibility(automation_id="loginBtn")
+    click_ui_element_by_accessibility(class_name="submit-button")
     ```
 
-    2. **SECOND: Use AI vision to find elements** with the `ui_tars_analyze` tool:
-    - Use the UI-TARS model to identify specific UI elements in the screenshot
+    2. **FIRST ALTERNATIVE: Find elements using accessibility** with the `find_ui_elements` tool:
+    - Use when you need to see all available elements before choosing
+    - Returns element hierarchy and click coordinates
+    - Helps understand the UI structure without clicking
+    
+    Example:
+    ```
+    find_ui_elements(control_type="Button", text="login")
+    find_ui_elements(text="submit")  # Find any element containing "submit"
+    find_ui_elements(automation_id="loginBtn")
+    find_ui_elements(class_name="submit-button")
+    ```
+
+    3. **FALLBACK: Use visual AI** with the `ui_tars_analyze` tool + `screenshot_ui`:
+    - Use when accessibility methods don't find the element
+    - Take screenshot first, then use AI to locate elements visually
     - Describe what you're looking for in natural language
-    - Returns both normalized (0-1) and absolute pixel coordinates
-    - Most reliable method for finding UI elements
     
     Example:
     ```
+    # Take screenshot for visual analysis
+    screenshot_ui(region="screen")
+    
+    # Use AI to find elements visually
     ui_tars_analyze(image_path="ui_hierarchy_20250524_143022.png", query="login button")
     ui_tars_analyze(image_path="screenshot.png", query="submit button in the form")
     ```
 
-    3. **THIRD: Click on found elements** with the `click_ui_element` tool:
-    - Use either absolute or normalized coordinates
-    - UI-TARS provides both formats - use whichever is convenient
-    - Specify wait_time if needed (default: 2.0 seconds)
+    4. **LAST RESORT: Click by coordinates** with the `click_ui_element` tool:
+    - Use coordinates from ui_tars_analyze or find_ui_elements
+    - UI-TARS provides both absolute and normalized coordinates
+    - Use only when accessibility methods fail
     
     Example:
     ```
@@ -77,12 +96,12 @@ The most effective approach combines visual AI with memory learning:
     click_ui_element(x=0.5, y=0.3, normalized=true)  # Normalized coordinates (0-1)
     ```
 
-    4. **Interact with text and keyboard** as needed:
+    5. **Interact with text and keyboard** as needed:
     - Type text: `keyboard_input(text="Hello world", press_enter=true)`
     - Press keys: `press_key(key="tab")`  
     - Shortcuts: `hot_key(keys=["ctrl", "c"])`
 
-    5. **VERIFY the action worked** with the `verify_ui_action` tool:
+    6. **VERIFY the action worked** with the `verify_ui_action` tool:
     - Check that your action had the expected result
     - Uses AI vision to confirm the UI state changed as expected
     - Essential for reliable automation workflows
@@ -96,7 +115,7 @@ The most effective approach combines visual AI with memory learning:
     )
     ```
 
-    6. **SAVE MEMORY after each verified action**:
+    7. **SAVE MEMORY after each verified action**:
     - Document what was done and whether it worked
     - Build knowledge for future similar tasks
     - Create workflow chains for complex sequences
@@ -108,12 +127,13 @@ The most effective approach combines visual AI with memory learning:
         "name": "Login_Button_Click_Action_2024",
         "entityType": "UI_Action",
         "observations": [
-            "Action: Clicked login button at normalized coords (0.5, 0.3)",
+            "Action: Clicked login button using accessibility API (control_type=Button, text=login)",
             "Result: SUCCESS - Login dialog opened as expected",
             "App: Chrome browser on login page",
             "Verification: Found 'username and password fields' in dialog",
             "Timing: 2.0 seconds wait time worked well",
-            "Screenshot: verification_20241201_143022.png"
+            "Method: Accessibility API successful, no fallback needed",
+            "Screenshot: Only taken when needed for verification"
         ]
     }])
     
@@ -125,11 +145,24 @@ The most effective approach combines visual AI with memory learning:
     }])
     ```
 
-📋 **BACKUP METHODS** (use only when visual approach doesn't work):
+📋 **ADDITIONAL TOOLS** (use as needed):
 
-    5. **Find elements near cursor** with the `find_elements_near_cursor` tool:
+    8. **Take screenshots** with the `screenshot_ui` tool:
+    - Use when you need to see the current UI state
+    - Helpful for understanding complex interfaces
+    - Required for visual AI analysis when accessibility methods fail
+    - Returns highlighted UI elements for analysis
+    
+    Example:
+    ```
+    screenshot_ui(region="screen")  # Full screen with element highlighting
+    screenshot_ui(region="top", focus_only=true)  # Top half, focused window only
+    ```
+
+    9. **Find elements near cursor** with the `find_elements_near_cursor` tool:
     - Finds UI elements closest to current cursor position
     - Returns absolute pixel coordinates
+    - Useful when you know roughly where an element is
     
     Example:
     ```
@@ -137,15 +170,16 @@ The most effective approach combines visual AI with memory learning:
     ```
 
 ⚙️ **COORDINATE FORMATS**:
+- `find_ui_elements` returns: `{"click_coordinates": {"absolute": {"x": 960, "y": 432}, "normalized": {"x": 0.5, "y": 0.3}}}`
 - UI-TARS returns: `{"normalized": {"x": 0.5, "y": 0.3}, "absolute": {"x": 960, "y": 432}}`
 - Other tools return: `{"coordinates": {"absolute": {...}, "normalized": {...}}}`
-- Click tool accepts: Both `{"x": 960, "y": 432}` and `{"x": 0.5, "y": 0.3, "normalized": true}`
+- Click tools accept: Both `{"x": 960, "y": 432}` and `{"x": 0.5, "y": 0.3, "normalized": true}`
 
-🎯 **MEMORY-ENHANCED WORKFLOW**:
+🎯 **RECOMMENDED WORKFLOW SEQUENCE**:
     0. **Search memory first**: `mcp_memory_search_nodes("similar task keywords")`
-    1. Take a screenshot: `screenshot_ui(region="screen")`  
-    2. Find element with AI: `ui_tars_analyze(image_path="screenshot.png", query="what you want")`
-    3. Click on element: `click_ui_element(x=absolute_x, y=absolute_y)`
+    1. **Try accessibility clicking**: `click_ui_element_by_accessibility(control_type="Button", text="what you want")`
+    2. **If accessibility fails, use visual AI**: `screenshot_ui()` then `ui_tars_analyze(image_path="screenshot.png", query="what you want")`
+    3. **If visual AI fails, use coordinates**: `click_ui_element(x=absolute_x, y=absolute_y)`
     4. Interact as needed: `keyboard_input(text="...")` or `press_key(...)`
     5. Verify it worked: `verify_ui_action(action_description="...", expected_result="...", verification_query="...")`
     6. **Save memory**: `mcp_memory_create_entities([action_memory])` + `mcp_memory_create_relations([workflow_link])`
@@ -153,9 +187,9 @@ The most effective approach combines visual AI with memory learning:
 ## 🧠 **MEMORY MANAGEMENT PATTERNS**
 
 ### **Entity Types to Create:**
-- `UI_Action`: Individual clicks, typing, key presses with results
+- `UI_Action`: Individual clicks, typing, key presses with results and methods used
 - `UI_Workflow`: Complete sequences of actions (login, file-open, etc.)  
-- `UI_Element`: Specific buttons, fields, menus with locations
+- `UI_Element`: Specific buttons, fields, menus with accessibility properties
 - `App_Context`: Application-specific behavior patterns
 - `Troubleshooting`: Failed actions with solutions
 
@@ -164,127 +198,81 @@ The most effective approach combines visual AI with memory learning:
 # Workflow entity
 "Website_Login_Workflow_Chrome" (UI_Workflow)
   ├─ INCLUDES_STEP → "Navigate_To_Login_Page" (UI_Action)
-  ├─ INCLUDES_STEP → "Click_Login_Button" (UI_Action) 
+  ├─ INCLUDES_STEP → "Click_Login_Button_Accessibility" (UI_Action) 
   ├─ INCLUDES_STEP → "Enter_Username" (UI_Action)
   └─ INCLUDES_STEP → "Enter_Password" (UI_Action)
 
 # Action entity with detailed observations
-"Click_Login_Button" (UI_Action)
-  - "Coordinates: normalized (0.5, 0.3) = absolute (960, 432)"
+"Click_Login_Button_Accessibility" (UI_Action)
+  - "Method: Accessibility API successful (control_type=Button, text=login)"
+  - "Fallback: Coordinate method not needed"
+  - "Coordinates: absolute (960, 432) = normalized (0.5, 0.3)"
   - "Verification: SUCCESS - Login dialog appeared"
   - "Timing: 2.0s wait worked well"
   - "Context: Chrome browser, login page loaded"
-  - "Alternative: Also found at (0.48, 0.31) on different screen size"
+  - "Element: automation_id=loginBtn, class_name=submit-button"
 ```
 
 ### **Search Strategies:**
 - **By task**: `mcp_memory_search_nodes("login workflow")`
 - **By app**: `mcp_memory_search_nodes("Chrome browser actions")`
 - **By element**: `mcp_memory_search_nodes("submit button clicking")`
+- **By method**: `mcp_memory_search_nodes("accessibility API successful")`
 - **By failure**: `mcp_memory_search_nodes("verification failed solutions")`
 
 ### **Learning from Failures:**
 ```
 # Document failures for future reference
 mcp_memory_create_entities([{
-    "name": "Login_Button_Click_Failed_2024",
+    "name": "Login_Button_Accessibility_Failed_2024",
     "entityType": "Troubleshooting", 
     "observations": [
-        "FAILED: Click at (0.5, 0.3) missed login button",
-        "Cause: Button moved due to page resize",
+        "FAILED: Accessibility API couldn't find button (control_type=Button, text=login)",
+        "Cause: Dynamic content or iframe",
         "Solution: Used UI-TARS to find actual position (0.52, 0.28)",
-        "Lesson: Always use UI-TARS for dynamic layouts",
-        "App: Chrome browser with responsive design"
+        "Lesson: Try UI-TARS when accessibility APIs fail",
+        "App: Chrome browser with dynamic login form"
     ]
 }])
 ```
 
- 💡 **PRO TIPS**:
-- **Always search memory first** - learn from past successes and failures
-- **Document everything** - coordinates, timing, context, results
-- **Link actions into workflows** - build reusable automation sequences  
-- **Save failures too** - they're valuable troubleshooting knowledge
-- Be specific in UI-TARS queries: "red submit button" instead of just "button"  
-- Use either absolute or normalized coordinates for clicking (both supported)
-- Normalized coordinates (0-1) work across different screen resolutions
-- **Always verify actions worked** - don't assume success without checking
-- Use backup text methods only when visual approach fails
+## 🔧 **METHOD SELECTION GUIDE**
 
-## 📋 **COMPLETE EXAMPLE: Memory-Enhanced Login Workflow**
+**Use Accessibility Methods When:**
+- Element has clear control type (Button, Edit, CheckBox, etc.)
+- Element has visible text or automation ID
+- Working with standard Windows applications
+- Need reliable clicking even if UI layout changes
+- Want fastest, most reliable interaction
 
-### **Step 1: Check existing knowledge**
-```
-# Search for similar workflows
-search_result = mcp_memory_search_nodes("website login Chrome browser")
+**Use Visual AI (UI-TARS) When:**
+- Accessibility methods can't find the element
+- Working with custom controls or web applications
+- Element has no clear text but is visually distinct
+- Need to find elements based on visual appearance
+- Dealing with canvas-based or graphic applications
 
-# If found, review past approaches and adapt
-# If not found, proceed with discovery and documentation
-```
+**Use Screenshots When:**
+- Need to understand the current UI state
+- Visual AI analysis is required
+- Debugging why accessibility methods failed
+- Documenting UI state for memory/learning
 
-### **Step 2: Execute with memory capture**
-```
-# 1. Screenshot and find login button
-screenshot_ui(region="screen")
-login_coords = ui_tars_analyze(image_path="screenshot.png", query="login button")
+**Use Coordinate Clicking When:**
+- Both accessibility and visual AI methods fail
+- Very simple, one-time actions
+- Elements are in fixed positions that won't change
+- Legacy applications with poor accessibility support
 
-# 2. Click login button  
-click_result = click_ui_element(x=login_coords['normalized']['x'], y=login_coords['normalized']['y'], normalized=true)
+**Element Finding Priority:**
+1. `click_ui_element_by_accessibility` (accessibility API with built-in fallback)
+2. `find_ui_elements` (accessibility API for exploration)
+3. `ui_tars_analyze` (visual AI analysis)
+4. `find_elements_near_cursor` (coordinate-based proximity)
 
-# 3. Verify it worked
-verification = verify_ui_action(
-    action_description="Clicked main login button",
-    expected_result="Login form should appear", 
-    verification_query="username and password input fields"
-)
-
-# 4. Save the action to memory
-mcp_memory_create_entities([{
-    "name": f"Login_Button_Click_{timestamp}",
-    "entityType": "UI_Action",
-    "observations": [
-        f"Action: Clicked login button at normalized ({login_coords['normalized']['x']:.3f}, {login_coords['normalized']['y']:.3f})",
-        f"Result: {'SUCCESS' if verification['verification_passed'] else 'FAILED'} - {verification['expected_result']}",
-        f"App: Chrome browser on website login page", 
-        f"Verification query: {verification['verification_query']}",
-        f"Wait time: {click_result['wait_time']}s worked well",
-        f"Screenshot: {verification['verification_screenshot']}"
-    ]
-}])
-
-# 5. Link to workflow (create workflow entity if needed)
-mcp_memory_create_relations([{
-    "from": "Website_Login_Workflow_Master",
-    "to": f"Login_Button_Click_{timestamp}",
-    "relationType": "INCLUDES_STEP"
-}])
-```
-
-### **Step 3: Build workflow knowledge**
-```
-# If this is part of a larger workflow, document the sequence
-mcp_memory_create_entities([{
-    "name": "Website_Login_Workflow_Master", 
-    "entityType": "UI_Workflow",
-    "observations": [
-        "Complete login workflow for web applications",
-        "Step 1: Navigate to login page",
-        "Step 2: Click login button (triggers login form)",
-        "Step 3: Enter username credentials", 
-        "Step 4: Enter password credentials",
-        "Step 5: Submit login form",
-        "Success rate: High with UI-TARS verification",
-        "Common issues: Dynamic layouts, slow page loads"
-    ]
-}])
-```
-
-### **Benefits of Memory Integration:**
-- 🧠 **Learning**: Each action builds knowledge for future tasks
-- 🔄 **Reusability**: Successful workflows can be reused and adapted  
-- 🐛 **Debugging**: Failed actions documented with solutions
-- ⚡ **Speed**: Skip discovery phase for known workflows
-- 🎯 **Accuracy**: Learn optimal coordinates and timing
-- 📊 **Analytics**: Track success rates and common failure patterns
+**Clicking Priority:**
+1. `click_ui_element_by_accessibility` (accessibility API with automatic coordinate fallback)
+2. `click_ui_element` (coordinates from UI-TARS or other sources)
         """
 
 
@@ -398,6 +386,16 @@ def create_server() -> Server:
                 name="play_macro",
                 description="Play back a recorded macro file with optional speed control and UI verification.",
                 inputSchema=PlayMacroInput.model_json_schema(),
+            ),
+            Tool(
+                name="find_ui_elements",
+                description="Find UI elements using accessibility APIs with various filter criteria (control type, text, automation ID, class name).",
+                inputSchema=FindUIElementsInput.model_json_schema(),
+            ),
+            Tool(
+                name="click_ui_element_by_accessibility",
+                description="Click on a UI element using accessibility APIs to find it, with coordinate fallback. More reliable than coordinate clicking for most UI elements.",
+                inputSchema=ClickUIElementByAccessibilityInput.model_json_schema(),
             )
         ]
 
@@ -565,6 +563,36 @@ def create_server() -> Server:
                     speed_multiplier=args.speed_multiplier,
                     verify_ui_context=args.verify_ui_context,
                     stop_on_verification_failure=args.stop_on_verification_failure
+                )
+                return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+            
+            elif name == "find_ui_elements":
+                args = FindUIElementsInput(**arguments)
+                result = await ui_explorer.find_ui_elements(
+                    control_type=args.control_type,
+                    text=args.text,
+                    automation_id=args.automation_id,
+                    class_name=args.class_name,
+                    focus_only=args.focus_only,
+                    visible_only=args.visible_only,
+                    max_depth=args.max_depth,
+                    min_size=args.min_size
+                )
+                return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
+            
+            elif name == "click_ui_element_by_accessibility":
+                args = ClickUIElementByAccessibilityInput(**arguments)
+                result = await ui_explorer.click_ui_element_by_accessibility(
+                    control_type=args.control_type,
+                    text=args.text,
+                    automation_id=args.automation_id,
+                    class_name=args.class_name,
+                    element_index=args.element_index,
+                    fallback_to_coordinates=args.fallback_to_coordinates,
+                    wait_time=args.wait_time,
+                    auto_verify=args.auto_verify,
+                    verification_query=args.verification_query,
+                    verification_timeout=args.verification_timeout
                 )
                 return [types.TextContent(type="text", text=json.dumps(result, indent=2))]
             

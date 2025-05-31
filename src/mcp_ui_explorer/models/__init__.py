@@ -19,6 +19,8 @@ from .inputs import (
     PauseMacroRecordingInput,
     GetMacroStatusInput,
     PlayMacroInput,
+    FindUIElementsInput,
+    ClickUIElementByAccessibilityInput,
 )
 
 __all__ = [
@@ -43,4 +45,6 @@ __all__ = [
     "PauseMacroRecordingInput",
     "GetMacroStatusInput",
     "PlayMacroInput",
+    "FindUIElementsInput",
+    "ClickUIElementByAccessibilityInput",
 ] 

@@ -186,4 +186,32 @@ class PlayMacroInput(BaseModel):
     macro_path: str = Field(description="Path to the macro file to play")
     speed_multiplier: float = Field(default=1.0, description="Speed multiplier for playback (1.0 = normal speed)")
     verify_ui_context: bool = Field(default=True, description="Whether to verify UI context matches before executing actions")
-    stop_on_verification_failure: bool = Field(default=True, description="Whether to stop playback if UI verification fails") 
+    stop_on_verification_failure: bool = Field(default=True, description="Whether to stop playback if UI verification fails")
+
+
+class FindUIElementsInput(BaseModel):
+    """Input model for find_ui_elements tool."""
+    
+    control_type: Optional[str] = Field(default=None, description="Control type to search for (e.g., 'Button', 'Edit', 'Text', etc.)")
+    text: Optional[str] = Field(default=None, description="Text content to search for (case-insensitive, partial match)")
+    automation_id: Optional[str] = Field(default=None, description="Automation ID to search for (partial match)")
+    class_name: Optional[str] = Field(default=None, description="Class name to search for (partial match)")
+    focus_only: bool = Field(default=True, description="Only search in the foreground window")
+    visible_only: bool = Field(default=True, description="Only include visible elements")
+    max_depth: int = Field(default=8, description="Maximum depth to search in UI hierarchy")
+    min_size: int = Field(default=5, description="Minimum element size to include")
+
+
+class ClickUIElementByAccessibilityInput(BaseModel):
+    """Input model for click_ui_element_by_accessibility tool."""
+    
+    control_type: Optional[str] = Field(default=None, description="Control type to search for (e.g., 'Button', 'Edit', 'Text', etc.)")
+    text: Optional[str] = Field(default=None, description="Text content to search for (case-insensitive, partial match)")
+    automation_id: Optional[str] = Field(default=None, description="Automation ID to search for (partial match)")
+    class_name: Optional[str] = Field(default=None, description="Class name to search for (partial match)")
+    element_index: int = Field(default=0, description="Index of element to click if multiple matches found (0-based)")
+    fallback_to_coordinates: bool = Field(default=True, description="Fall back to coordinate clicking if accessibility click fails")
+    wait_time: float = Field(default=2.0, description="Seconds to wait before clicking")
+    auto_verify: bool = Field(default=True, description="Automatically verify the click action using UI-TARS")
+    verification_query: Optional[str] = Field(default=None, description="What to look for to verify the click worked (auto-generated if not provided)")
+    verification_timeout: float = Field(default=3.0, description="How long to wait for verification (seconds)") 

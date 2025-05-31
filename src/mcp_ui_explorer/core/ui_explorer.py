@@ -105,6 +105,76 @@ class UIExplorer:
             result = {"success": False, "error": str(e)}
             return self._track_and_log("screenshot_ui", locals(), result)
     
+    async def find_ui_elements(
+        self,
+        control_type: Optional[str] = None,
+        text: Optional[str] = None,
+        automation_id: Optional[str] = None,
+        class_name: Optional[str] = None,
+        focus_only: bool = True,
+        visible_only: bool = True,
+        max_depth: int = 8,
+        min_size: int = 5
+    ) -> Dict[str, Any]:
+        """Find UI elements using accessibility APIs with various filter criteria."""
+        result = await self.ui_actions.find_ui_elements(
+            control_type=control_type,
+            text=text,
+            automation_id=automation_id,
+            class_name=class_name,
+            focus_only=focus_only,
+            visible_only=visible_only,
+            max_depth=max_depth,
+            min_size=min_size
+        )
+        
+        # Track and add metadata
+        result = self._track_and_log("find_ui_elements", locals(), result)
+        
+        # Check for auto-summary
+        auto_summary = await self._check_auto_summary()
+        if auto_summary:
+            result["auto_summary_created"] = auto_summary
+        
+        return result
+    
+    async def click_ui_element_by_accessibility(
+        self,
+        control_type: Optional[str] = None,
+        text: Optional[str] = None,
+        automation_id: Optional[str] = None,
+        class_name: Optional[str] = None,
+        element_index: int = 0,
+        fallback_to_coordinates: bool = True,
+        wait_time: float = None,
+        auto_verify: bool = None,
+        verification_query: Optional[str] = None,
+        verification_timeout: float = None
+    ) -> Dict[str, Any]:
+        """Click on a UI element using accessibility APIs, with coordinate fallback."""
+        result = await self.ui_actions.click_ui_element_by_accessibility(
+            control_type=control_type,
+            text=text,
+            automation_id=automation_id,
+            class_name=class_name,
+            element_index=element_index,
+            fallback_to_coordinates=fallback_to_coordinates,
+            wait_time=wait_time,
+            auto_verify=auto_verify,
+            verification_query=verification_query,
+            verification_timeout=verification_timeout
+        )
+        
+        # Track and add metadata
+        result = self._track_and_log("click_ui_element_by_accessibility", locals(), result)
+        
+        # Check for auto-summary
+        auto_summary = await self._check_auto_summary()
+        if auto_summary:
+            result["auto_summary_created"] = auto_summary
+        
+        return result
+    
     async def click_ui_element(
         self,
         x: float,
