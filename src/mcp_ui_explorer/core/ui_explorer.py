@@ -49,8 +49,23 @@ class UIExplorer:
         # Track step progress
         step_progress = self.step_tracker.track_step_progress(tool_name)
         
+        # Filter out non-JSON serializable values from arguments to avoid serialization issues
+        def is_json_serializable(value):
+            """Check if a value is JSON serializable."""
+            try:
+                import json
+                json.dumps(value)
+                return True
+            except (TypeError, ValueError):
+                return False
+        
+        filtered_arguments = {
+            k: v for k, v in arguments.items() 
+            if k != 'self' and is_json_serializable(v)
+        }
+        
         # Log action for summarization
-        self.action_logger.log_action(tool_name, arguments, result)
+        self.action_logger.log_action(tool_name, filtered_arguments, result)
         
         # Add metadata to result
         result["tool_usage_stats"] = usage_stats

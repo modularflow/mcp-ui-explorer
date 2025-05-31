@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 
 import pytest
 
-from mcp_ui_explorer import UIExplorer
+from old_way.mcp_ui_explorer import UIExplorer
 from mcp_ui_explorer.models import ScreenshotUIInput, ClickUIElementInput
 
 

@@ -1,6 +1,6 @@
 """UI Explorer for MCP - Production Ready Modular Package."""
 
-__version__ = "0.1.17"
+__version__ = "0.1.20"
 
 # Import from the new modular structure
 from .core.ui_explorer import UIExplorer

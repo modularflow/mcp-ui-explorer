@@ -74,8 +74,22 @@ class ActionLogger:
         
         self.action_log.append(action_entry)
         
-        # Estimate context size increase
-        action_text = json.dumps(action_entry)
+        # Estimate context size increase with defensive JSON serialization
+        try:
+            action_text = json.dumps(action_entry)
+        except (TypeError, ValueError) as e:
+            # Fallback: create a safe version of the action entry
+            safe_action_entry = {
+                "timestamp": action_entry["timestamp"],
+                "tool_name": action_entry["tool_name"],
+                "arguments": {k: str(v) if not isinstance(v, (str, int, float, bool, list, dict, type(None))) else v 
+                            for k, v in action_entry["arguments"].items()},
+                "result_summary": action_entry["result_summary"],
+                "success": action_entry["success"]
+            }
+            self.logger.warning(f"JSON serialization error in log_action: {e}. Using safe fallback.")
+            action_text = json.dumps(safe_action_entry)
+        
         self.estimated_context_size += self._estimate_context_size(action_text)
     
     def _estimate_context_size(self, text: str) -> int:
